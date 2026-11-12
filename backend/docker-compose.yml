@@ -1,0 +1,40 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-smartgaz}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-smartgaz}
+      POSTGRES_DB: ${POSTGRES_DB:-smartgaz}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      retries: 10
+    ports:
+      - "5432:5432"
+
+  api:
+    build: .
+    env_file: .env
+    environment:
+      POSTGRES_HOST: db
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+
+  bot:
+    build: .
+    env_file: .env
+    environment:
+      POSTGRES_HOST: db
+    command: ["python", "-m", "app.bot.main"]
+    depends_on:
+      api:
+        condition: service_started
+    restart: unless-stopped
+
+volumes:
+  pgdata:
