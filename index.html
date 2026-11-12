@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SmartGaz</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;800&family=Onest:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+/* Yo'nalish: qizil-to'q sariq gaz baloni + tungi ko'k siyoh. Ish joyi: yuqorida rol paneli,
+   ostida bo'limlar yorliqlari; har bir ekran avval xulosa, keyin tafsilot. */
+:root {
+  --ink: #0f1d33; --paper: #f3f5f8; --surface: #ffffff; --line: #d9e0ea; --muted: #5b6b82;
+  --flame: #e8501c; --flame-soft: #ffe6da; --steel: #1d4f8f; --steel-soft: #e3ecf8;
+  --ok: #158a52; --ok-soft: #dcf4e7; --warn: #9a6400; --warn-soft: #fff1cf; --bad: #c62f2f; --bad-soft: #fbe2e2;
+  --map: #eef2f7; --street: #c9d3e0;
+  --display: "Unbounded", "Arial Black", system-ui, sans-serif;
+  --body: "Onest", "Segoe UI", system-ui, sans-serif;
+  --radius: 16px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ink: #eaf0f8; --paper: #0b1424; --surface: #121e33; --line: #24344f; --muted: #93a3bb;
+    --flame: #ff6a33; --flame-soft: #3a1f17; --steel: #7fb0ec; --steel-soft: #17294a;
+    --ok: #4cd391; --ok-soft: #12352a; --warn: #f2c14e; --warn-soft: #3a2f12; --bad: #ff7b7b; --bad-soft: #3d1b1f;
+    --map: #0f1a2d; --street: #2a3c5a; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --ink: #eaf0f8; --paper: #0b1424; --surface: #121e33; --line: #24344f; --muted: #93a3bb;
+  --flame: #ff6a33; --flame-soft: #3a1f17; --steel: #7fb0ec; --steel-soft: #17294a;
+  --ok: #4cd391; --ok-soft: #12352a; --warn: #f2c14e; --warn-soft: #3a2f12; --bad: #ff7b7b; --bad-soft: #3d1b1f;
+  --map: #0f1a2d; --street: #2a3c5a; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--paper); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.5; }
+h1, h2, h3 { font-family: var(--display); line-height: 1.1; text-wrap: balance; margin: 0; letter-spacing: -0.02em; }
+a { color: inherit; }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--flame); outline-offset: 2px; border-radius: 6px; }
+.num { font-variant-numeric: tabular-nums; }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 0 20px; }
+.muted { color: var(--muted); }
+.small { font-size: 13px; }
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.grow { flex: 1; }
+.stack { display: grid; gap: 16px; align-content: start; }
+
+/* ---------- buttons ---------- */
+.btn { border: 0; border-radius: 11px; padding: 10px 16px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 8px; transition: transform .12s ease; white-space: nowrap; }
+.btn:hover:not(:disabled) { transform: translateY(-1px); }
+.btn:disabled { opacity: .55; cursor: not-allowed; transform: none; }
+.btn-flame { background: var(--flame); color: #fff; }
+.btn-ink { background: var(--ink); color: var(--paper); }
+.btn-line { background: transparent; border: 1.5px solid var(--line); }
+.btn-ok { background: var(--ok); color: #fff; }
+.btn-warn { background: var(--warn-soft); color: var(--warn); }
+.btn-bad { background: var(--bad-soft); color: var(--bad); }
+.btn-sm { padding: 7px 11px; border-radius: 9px; font-size: 13px; }
+.btn-big { width: 100%; padding: 18px; font-size: 17px; border-radius: 14px; font-family: var(--display); font-weight: 700; }
+
+/* ---------- top bar ---------- */
+.top { position: sticky; top: 0; z-index: 30; background: color-mix(in srgb, var(--paper) 90%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+.top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 14px; height: 62px; }
+.logo { display: flex; align-items: center; gap: 10px; text-decoration: none; font-family: var(--display); font-weight: 700; font-size: 18px; letter-spacing: -0.02em; cursor: pointer; background: none; border: 0; padding: 0; }
+.logo svg { width: 30px; height: 30px; }
+.who { display: flex; gap: 10px; align-items: center; font-size: 14px; }
+.role-badge { font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px; background: var(--steel-soft); color: var(--steel); }
+.bell { position: relative; }
+.bell b { position: absolute; top: -6px; right: -6px; background: var(--flame); color: #fff; font-size: 11px; border-radius: 999px; padding: 1px 6px; }
+
+/* ---------- tabs ---------- */
+.tabs { display: flex; gap: 6px; overflow-x: auto; padding: 14px 0 4px; scrollbar-width: none; }
+.tabs button { border: 0; background: transparent; padding: 9px 14px; border-radius: 10px; cursor: pointer; font-weight: 600; color: var(--muted); white-space: nowrap; }
+.tabs button.on { background: var(--ink); color: var(--paper); }
+.tabs button .cnt { display: inline-block; margin-left: 6px; font-size: 11px; background: var(--flame); color: #fff; border-radius: 999px; padding: 0 6px; }
+main.app { padding: 10px 0 60px; }
+.page-head { display: flex; justify-content: space-between; align-items: end; gap: 12px; flex-wrap: wrap; margin: 12px 0 16px; }
+.page-head h2 { font-size: 26px; }
+
+/* ---------- cards ---------- */
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; }
+.card h3 { font-family: var(--body); font-size: 16px; font-weight: 700; margin-bottom: 12px; letter-spacing: 0; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.grid-main { display: grid; grid-template-columns: 1.15fr .85fr; gap: 16px; align-items: start; }
+.kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 16px; }
+.kpi { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; position: relative; overflow: hidden; }
+.kpi::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--c, var(--steel)); }
+.kpi span { font-size: 12.5px; color: var(--muted); }
+.kpi b { display: block; font-family: var(--display); font-size: 28px; margin-top: 2px; letter-spacing: -0.03em; }
+.metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.metric { background: var(--paper); border-radius: 12px; padding: 14px 8px; text-align: center; }
+.metric b { display: block; font-family: var(--display); font-size: 28px; color: var(--steel); letter-spacing: -0.03em; }
+.metric span { font-size: 12px; color: var(--muted); }
+.note { border-radius: 12px; padding: 11px 14px; font-size: 14px; margin-top: 12px; }
+.note.info { background: var(--steel-soft); }
+.note.warn { background: var(--warn-soft); color: var(--warn); }
+.note.bad { background: var(--bad-soft); color: var(--bad); }
+.note.ok { background: var(--ok-soft); color: var(--ok); }
+.pill { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.pill.PENDING { background: var(--warn-soft); color: var(--warn); }
+.pill.APPROVED { background: var(--steel-soft); color: var(--steel); }
+.pill.ON_WAY, .pill.IN_PROGRESS { background: var(--flame-soft); color: var(--flame); }
+.pill.DELIVERED, .pill.COMPLETED, .pill.ok { background: var(--ok-soft); color: var(--ok); }
+.pill.CANCELLED, .pill.bad { background: var(--bad-soft); color: var(--bad); }
+.pill.PLANNED, .pill.muted { background: var(--paper); color: var(--muted); border: 1px solid var(--line); }
+
+/* ---------- forms ---------- */
+.field { margin-bottom: 12px; }
+.field label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 5px; }
+.field input, .field select, .field textarea { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1.5px solid var(--line); background: var(--paper); }
+.field textarea { min-height: 80px; resize: vertical; }
+.field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: var(--steel); }
+.f2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+.f3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0 12px; }
+.inline-form { display: flex; gap: 8px; align-items: end; flex-wrap: wrap; background: var(--paper); border-radius: 12px; padding: 10px; margin-top: 8px; }
+.inline-form .field { margin: 0; }
+.inline-form input, .inline-form select { width: auto; min-width: 90px; }
+
+/* ---------- tables & lists ---------- */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 11.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 600; }
+tr.sel td { background: var(--steel-soft); }
+.list { list-style: none; margin: 0; padding: 0; }
+.list li { padding: 12px 0; border-bottom: 1px solid var(--line); }
+.list li:last-child { border-bottom: 0; }
+.bar { height: 8px; border-radius: 999px; background: var(--paper); overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--ok); border-radius: 999px; }
+.empty { color: var(--muted); padding: 18px 0; text-align: center; }
+
+/* ---------- map ---------- */
+.map svg { width: 100%; height: auto; display: block; border-radius: 12px; background: var(--map); }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); margin-top: 8px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; }
+.gps { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
+.gps .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 4px var(--ok-soft); }
+
+/* ---------- landing ---------- */
+.hero { padding: 48px 0 30px; }
+.hero .wrap { display: grid; grid-template-columns: 1.2fr .8fr; gap: 36px; align-items: center; }
+.kicker { display: inline-flex; font-weight: 600; font-size: 13.5px; color: var(--flame); background: var(--flame-soft); padding: 6px 12px; border-radius: 999px; }
+.hero h1 { font-size: clamp(36px, 5.6vw, 66px); font-weight: 800; letter-spacing: -0.035em; margin: 16px 0; }
+.hero h1 em { font-style: normal; color: var(--flame); }
+.hero p.lead { font-size: 18px; color: var(--muted); max-width: 34em; margin: 0 0 24px; }
+.cyl { display: grid; place-items: center; }
+.cyl svg { width: min(220px, 55vw); height: auto; filter: drop-shadow(0 26px 36px rgba(15,29,51,.2)); }
+.roles { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; padding-bottom: 40px; }
+.role-card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 18px; text-align: left; cursor: pointer; display: grid; gap: 6px; align-content: start; }
+.role-card:hover { border-color: var(--flame); }
+.role-card b { font-size: 16px; }
+.role-card span { color: var(--muted); font-size: 13.5px; }
+.role-card .go { color: var(--flame); font-weight: 600; font-size: 13px; margin-top: 4px; }
+.rules { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1.5px solid var(--ink); margin-top: 30px; }
+.rules div { padding: 14px 16px 0 0; }
+.rules b { display: block; font-family: var(--display); font-size: 26px; letter-spacing: -0.03em; }
+.rules span { color: var(--muted); font-size: 13.5px; }
+.sec-title { font-size: 24px; margin: 6px 0 16px; }
+
+.toast { position: fixed; left: 50%; bottom: 22px; transform: translate(-50%, 20px); background: var(--ink); color: var(--paper); padding: 12px 18px; border-radius: 13px; max-width: min(92vw, 540px); opacity: 0; pointer-events: none; transition: all .25s ease; z-index: 60; box-shadow: 0 14px 40px rgba(0,0,0,.25); }
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+.toast.error { background: var(--bad); color: #fff; }
+.toast.success { background: var(--ok); color: #fff; }
+footer { padding: 26px 0 40px; color: var(--muted); font-size: 13px; }
+footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; border-top: 1px solid var(--line); padding-top: 18px; }
+
+@media (max-width: 1000px) {
+  .kpis { grid-template-columns: repeat(3, 1fr); }
+  .roles { grid-template-columns: repeat(2, 1fr); }
+  .grid-main, .grid2, .hero .wrap { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) {
+  .wrap { padding: 0 14px; }
+  .kpis { grid-template-columns: 1fr 1fr; }
+  .roles { grid-template-columns: 1fr; }
+  .f2, .f3, .rules { grid-template-columns: 1fr; }
+  .who .uname { display: none; }
+  .card { padding: 16px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap" id="topbar"></div></header>
+<div id="root"></div>
+<footer><div class="wrap"><span>© 2026 SmartGaz — maishiy gaz ballonlari uchun elektron navbat platformasi</span><span id="footNote">Sinov rejimi: ma'lumotlar shu brauzerda saqlanadi</span></div></footer>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+"use strict";
+
+// =================================================================== konstantalar
+const KEY = "smartgaz_platform_v1";
+const MIN = 6e4, H = 36e5, DAY = 864e5;
+const ACTIVE = ["PENDING", "APPROVED", "ON_WAY"];
+const LABEL = { PENDING: "Navbatda", APPROVED: "Marshrutda", ON_WAY: "Yo'lda", DELIVERED: "Topshirildi", CANCELLED: "Bekor qilindi" };
+const RLABEL = { PLANNED: "Rejalashtirilgan", IN_PROGRESS: "Yo'lda", COMPLETED: "Yakunlangan" };
+const ROLE = { citizen: "Fuqaro", driver: "Haydovchi", dispatcher: "Dispecher", mfy: "MFY vakili", admin: "Administrator" };
+const PAY = { CASH: "Naqd", CARD: "ID-karta hisobi", ONLINE: "Onlayn" };
+const REGIONS = ["Qoraqalpog'iston Respublikasi", "Andijon viloyati", "Buxoro viloyati", "Farg'ona viloyati", "Jizzax viloyati", "Xorazm viloyati", "Namangan viloyati", "Navoiy viloyati", "Qashqadaryo viloyati", "Samarqand viloyati", "Sirdaryo viloyati", "Surxondaryo viloyati", "Toshkent viloyati", "Toshkent shahri"];
+
+const norm = (s) => String(s ?? "").trim().toLowerCase().replace(/[ʻʼ’‘`´]/g, "'").replace(/\s+/g, " ");
+const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+const fmtD = (t) => (t ? new Date(t).toLocaleDateString("ru-RU", { timeZone: "Asia/Tashkent" }) : "—");
+const fmtDT = (t) => (t ? new Date(t).toLocaleString("ru-RU", { timeZone: "Asia/Tashkent", dateStyle: "short", timeStyle: "short" }) : "—");
+const fmtT = (t) => (t ? new Date(t).toLocaleTimeString("ru-RU", { timeZone: "Asia/Tashkent", hour: "2-digit", minute: "2-digit" }) : "—");
+const money = (n) => Math.round(n).toLocaleString("ru-RU").replace(/ /g, " ") + " so'm";
+const tzKey = (t) => new Date(t).toLocaleDateString("sv-SE", { timeZone: "Asia/Tashkent" });
+const todayKey = () => tzKey(Date.now());
+const pill = (s, map = LABEL) => `<span class="pill ${esc(s)}">${esc(map[s] || s)}</span>`;
+const ago = (t) => { const m = Math.round((Date.now() - t) / MIN); return m < 1 ? "hozirgina" : m < 60 ? `${m} daqiqa oldin` : m < 1440 ? `${Math.round(m / 60)} soat oldin` : `${Math.round(m / 1440)} kun oldin`; };
+function normPhone(raw) {
+  let d = String(raw).replace(/\D/g, ""); if (d.length === 9) d = "998" + d;
+  if (d.length !== 12 || !d.startsWith("998")) throw new Error("Telefon raqam +998 XX XXX XX XX ko'rinishida bo'lsin");
+  return "+" + d;
+}
+
+// =================================================================== boshlang'ich ma'lumotlar
+function seed() {
+  const now = Date.now();
+  const s = { v: 1, seq: 0, session: null,
+    settings: { cooldownDays: 20, dailyPlan: 20, pricePerKg: 5000, defaultKg: 21, gpsInterval: 30 },
+    mahallas: [], users: [], households: [], drivers: [], orders: [], routes: [], complaints: [], notifications: [], audit: [] };
+  const id = () => ++s.seq;
+  const M = (name) => { const m = { id: id(), region: "Farg'ona viloyati", district: "Oltiariq tumani", name }; s.mahallas.push(m); return m.id; };
+  const mNav = M("Navbahor"), mYan = M("Yangiobod"), mBog = M("Bog'ishamol");
+  const hh = (mid, street, house, extra = {}) => { const h = { id: id(), mahallaId: mid, street, house, cardId: "", familySize: 4, verified: true, multiFamily: false, actNo: "", needy: false, blocked: false, createdAt: now - 60 * DAY, ...extra }; s.households.push(h); return h.id; };
+  const cit = (email, name, phone, hid) => { const u = { id: id(), email, password: "demo123", role: "citizen", name, phone, householdId: hid, createdAt: now - 50 * DAY }; s.users.push(u); return u; };
+  const staff = (email, role, name, phone, extra = {}) => { const u = { id: id(), email, password: "demo123", role, name, phone, createdAt: now - 90 * DAY, ...extra }; s.users.push(u); return u; };
+
+  const H1 = hh(mNav, "Bog'bon", "12", { cardId: "FG-104233" }), H2 = hh(mNav, "Navro'z", "4"), H3 = hh(mNav, "Bog'bon", "27"),
+    H4 = hh(mNav, "Paxtakor", "8", { needy: true }), H5 = hh(mNav, "Navro'z", "15"), H6 = hh(mNav, "Paxtakor", "21", { verified: false, familySize: 6 }),
+    H7 = hh(mNav, "Bog'bon", "5"), H8 = hh(mYan, "Yoshlik", "3"), H9 = hh(mYan, "Yoshlik", "19"), H10 = hh(mYan, "Do'stlik", "7"),
+    H11 = hh(mYan, "Do'stlik", "14", { needy: true }), H12 = hh(mYan, "Yoshlik", "30"), H13 = hh(mBog, "Chinor", "2"), H14 = hh(mBog, "Chinor", "11"), H15 = hh(mBog, "Bahor", "6");
+  const U = {
+    jasur: cit("jasur@mail.uz", "Karimov Jasur", "+998911234501", H1), nodira: cit("nodira@mail.uz", "Tursunova Nodira", "+998931234502", H2),
+    bekzod: cit("bekzod@mail.uz", "Ergashev Bekzod", "+998941234503", H3), dilnoza: cit("dilnoza@mail.uz", "Qodirova Dilnoza", "+998971234504", H4),
+    otabek: cit("otabek@mail.uz", "Rahimov Otabek", "+998991234507", H5), gulnora: cit("gulnora@mail.uz", "Yusupova Gulnora", "+998901112233", H6),
+    sherzod: cit("sherzod@mail.uz", "Xolmatov Sherzod", "+998935556677", H7), sardor: cit("sardor@mail.uz", "Sobirov Sardor", "+998901234505", H8),
+    malika: cit("malika@mail.uz", "Aliyeva Malika", "+998951234506", H9), ulugbek: cit("ulugbek@mail.uz", "Nazarov Ulug'bek", "+998977778899", H10),
+    zarina: cit("zarina@mail.uz", "Mirzayeva Zarina", "+998912223344", H11), akmal: cit("akmal@mail.uz", "Hamidov Akmal", "+998977778899", H12),
+    farrux: cit("farrux@mail.uz", "Usmonov Farrux", "+998903334455", H13), lola: cit("lola@mail.uz", "Saidova Lola", "+998946667788", H14),
+    rustam: cit("rustam@mail.uz", "To'xtayev Rustam", "+998998887766", H15),
+  };
+  const D1 = { id: id(), name: "Karimov Anvar", phone: "+998901010101", car: "40A123BC", capacity: 60, active: true };
+  const D2 = { id: id(), name: "Jo'rayev Bahrom", phone: "+998902020202", car: "40B456CD", capacity: 50, active: true };
+  s.drivers.push(D1, D2);
+  staff("haydovchi1@smartgaz.uz", "driver", D1.name, D1.phone, { driverId: D1.id });
+  staff("haydovchi2@smartgaz.uz", "driver", D2.name, D2.phone, { driverId: D2.id });
+  staff("dispecher@smartgaz.uz", "dispatcher", "Dispecher Oltiariq", "+998901000000");
+  staff("mfy@smartgaz.uz", "mfy", "Navbahor MFY raisi", "+998901000001", { mahallaId: mNav });
+  staff("admin@smartgaz.uz", "admin", "Tizim administratori", "+998901000002");
+
+  const dateStr = todayKey();
+  const R1 = { id: id(), driverId: D1.id, mahallaId: mNav, allocated: 3, delivered: 0, status: "PLANNED", date: dateStr, createdAt: now - 2 * H, startedAt: null, finishedAt: null };
+  const R2 = { id: id(), driverId: D2.id, mahallaId: mYan, allocated: 3, delivered: 1, status: "IN_PROGRESS", date: dateStr, createdAt: now - 3 * H, startedAt: now - 50 * MIN, finishedAt: null };
+  s.routes.push(R1, R2);
+
+  const raw = [];
+  const o = (u, status, reqAgo, x = {}) => raw.push({ userId: u.id, householdId: u.householdId, status, requestedAt: now - reqAgo, routeId: null, deliveredAt: null, kg: null, amount: null, payment: null, notHome: 0, ...x });
+  const del = (agoMs) => ({ deliveredAt: now - agoMs, kg: 21, amount: 21 * 5000, payment: "CASH" });
+  o(U.nodira, "DELIVERED", 35 * DAY, del(31 * DAY));
+  o(U.farrux, "DELIVERED", 48 * DAY, del(45 * DAY));
+  o(U.ulugbek, "DELIVERED", 25 * DAY, del(22 * DAY));
+  o(U.lola, "CANCELLED", 20 * DAY); o(U.lola, "CANCELLED", 14 * DAY); o(U.lola, "CANCELLED", 6 * DAY);
+  o(U.otabek, "DELIVERED", 12 * DAY, del(6 * DAY));
+  o(U.sardor, "DELIVERED", 9 * DAY, del(5 * DAY));
+  o(U.sherzod, "DELIVERED", 8 * DAY, del(3 * DAY));
+  o(U.zarina, "DELIVERED", 7 * DAY, del(2 * DAY));
+  o(U.farrux, "PENDING", 23 * DAY);
+  o(U.rustam, "PENDING", 10 * DAY);
+  o(U.jasur, "APPROVED", 6 * DAY, { routeId: R1.id });
+  o(U.nodira, "APPROVED", 5 * DAY, { routeId: R1.id });
+  o(U.bekzod, "APPROVED", 4 * DAY, { routeId: R1.id });
+  o(U.malika, "DELIVERED", 3 * DAY + 2 * H, { routeId: R2.id, ...del(25 * MIN) });
+  o(U.akmal, "ON_WAY", 3 * DAY, { routeId: R2.id });
+  o(U.ulugbek, "ON_WAY", 1 * DAY, { routeId: R2.id });
+  o(U.dilnoza, "PENDING", 2 * DAY);
+  o(U.gulnora, "PENDING", 20 * H);
+  raw.sort((a, b) => a.requestedAt - b.requestedAt);
+  const qn = {};
+  for (const r of raw) {
+    const m = s.households.find((h) => h.id === r.householdId).mahallaId;
+    qn[m] = (qn[m] || 0) + 1;
+    s.orders.push({ id: id(), queue: qn[m], ...r });
+  }
+  const jo = s.orders.find((x) => x.userId === U.jasur.id);
+  s.notifications.push(
+    { id: id(), userId: U.jasur.id, text: `Navbatga qo'shildingiz. Navbat raqamingiz: #${jo.queue}`, at: jo.requestedAt, read: true },
+    { id: id(), userId: U.jasur.id, text: `Bugungi marshrutga kiritildingiz. Haydovchi: ${D1.name}, ${D1.car}.`, at: now - 2 * H, read: false });
+  const fo = s.orders.find((x) => x.userId === U.farrux.id && x.status === "PENDING");
+  s.complaints.push(
+    { id: id(), userId: U.farrux.id, orderId: fo.id, type: "Kechikish", text: "23 kundan beri navbatdaman, mashina mahallamizga hali kelmadi.", status: "NEW", answer: "", at: now - 1 * DAY },
+    { id: id(), userId: U.zarina.id, orderId: null, type: "Og'irlik", text: "Ballon odatdagidan yengilroq tuyuldi, tarozida tekshirib berishingizni so'rayman.", status: "ANSWERED", answer: "Haydovchi tarozi ko'rsatkichini tekshirdi: 21 kg. Keyingi safar qabul qilishda tarozini birga ko'rishingiz mumkin.", at: now - 2 * DAY + 3 * H });
+  s.audit.push(
+    { id: id(), at: now - 3 * H, actor: "Dispecher Oltiariq", action: "Marshrut yaratildi", detail: `#${R2.id} Yangiobod, ${D2.name}, 3 ballon`, reason: "" },
+    { id: id(), at: now - 2 * H, actor: "Dispecher Oltiariq", action: "Marshrut yaratildi", detail: `#${R1.id} Navbahor, ${D1.name}, 3 ballon`, reason: "" },
+    { id: id(), at: now - 50 * MIN, actor: D2.name, action: "Marshrut boshlandi", detail: `#${R2.id} Yangiobod`, reason: "" });
+  return s;
+}
+
+let S;
+function load() { try { S = JSON.parse(localStorage.getItem(KEY) || "null"); } catch { S = null; } if (!S || S.v !== 1) { S = seed(); save(); } }
+function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch { /* xotira mavjud emas */ } }
+const nid = () => ++S.seq;
+const fail = (m) => { throw new Error(m); };
+
+// =================================================================== so'rovlar
+const me = () => (S.session ? S.users.find((u) => u.id === S.session) : null);
+const hhById = (id) => S.households.find((h) => h.id === id);
+const mById = (id) => S.mahallas.find((m) => m.id === id);
+const drvById = (id) => S.drivers.find((d) => d.id === id);
+const userById = (id) => S.users.find((u) => u.id === id);
+const routeById = (id) => S.routes.find((r) => r.id === id);
+const orderMahalla = (o) => hhById(o.householdId)?.mahallaId;
+const hhLabel = (h) => `${h.street} ko'chasi, ${h.house}-uy`;
+const hhUsers = (hid) => S.users.filter((u) => u.householdId === hid);
+const hhName = (hid) => hhUsers(hid)[0]?.name || "—";
+const activeOrderOf = (hid) => S.orders.filter((o) => o.householdId === hid && ACTIVE.includes(o.status)).sort((a, b) => a.queue - b.queue)[0] || null;
+const lastDelivery = (hid) => S.orders.filter((o) => o.householdId === hid && o.status === "DELIVERED").reduce((m, o) => Math.max(m, o.deliveredAt || 0), 0) || null;
+const cooldownEnd = (hid) => { const l = lastDelivery(hid); return l ? l + S.settings.cooldownDays * DAY : null; };
+const activeInMahalla = (mid) => S.orders.filter((o) => ACTIVE.includes(o.status) && orderMahalla(o) === mid);
+
+function queueInfo(hid) {
+  const h = hhById(hid); const o = activeOrderOf(hid);
+  const total = activeInMahalla(h.mahallaId).length;
+  if (!o) return { order: null, total };
+  const pos = activeInMahalla(h.mahallaId).filter((x) => x.queue < o.queue).length + 1;
+  let est;
+  if (o.status === "ON_WAY") est = Date.now();
+  else if (o.routeId) est = new Date(routeById(o.routeId).date + "T12:00:00+05:00").getTime();
+  else est = Date.now() + (1 + Math.floor((pos - 1) / S.settings.dailyPlan)) * DAY;
+  return { order: o, pos, total, est };
+}
+
+function notify(userId, text) { S.notifications.push({ id: nid(), userId, text, at: Date.now(), read: false }); }
+function notifyHousehold(hid, text) { hhUsers(hid).forEach((u) => notify(u.id, text)); }
+function audit(action, detail, reason = "") { S.audit.push({ id: nid(), at: Date.now(), actor: me()?.name || "Tizim", action, detail, reason }); }
+
+// =================================================================== biznes-amallar
+function createOrder() {
+  const u = me(); const h = hhById(u.householdId);
+  if (h.blocked) fail("Xonadoningiz vaqtincha bloklangan. Iltimos, mahalla (MFY) yoki dispecher bilan bog'laning.");
+  if (activeOrderOf(h.id)) fail("Siz yaqinda gaz olgansiz yoki navbatdasiz: xonadoningiz allaqachon navbatda.");
+  const end = cooldownEnd(h.id);
+  if (end && end > Date.now()) fail(`Siz yaqinda gaz olgansiz yoki navbatdasiz. Keyingi navbat ${fmtD(end)} dan ochiladi.`);
+  const q = S.orders.filter((o) => orderMahalla(o) === h.mahallaId).reduce((m, o) => Math.max(m, o.queue), 0) + 1;
+  const o = { id: nid(), queue: q, userId: u.id, householdId: h.id, status: "PENDING", requestedAt: Date.now(), routeId: null, deliveredAt: null, kg: null, amount: null, payment: null, notHome: 0 };
+  S.orders.push(o);
+  notify(u.id, `Navbatga qo'shildingiz. Navbat raqamingiz: #${q}`);
+  save(); return o;
+}
+function cancelOwnOrder() {
+  const o = activeOrderOf(me().householdId);
+  if (!o) fail("Faol navbatingiz yo'q.");
+  if (o.status === "ON_WAY") fail("Mashina yo'lda — navbatni bekor qilib bo'lmaydi.");
+  o.status = "CANCELLED"; o.routeId = null; save();
+}
+function createRoute({ driverId, mahallaId, count, date }) {
+  const d = drvById(driverId); if (!d || !d.active) fail("Haydovchini tanlang.");
+  if (!mahallaId) fail("Mahallani tanlang.");
+  if (!(count > 0)) fail("Ballonlar sonini kiriting.");
+  if (count > d.capacity) fail(`Ballonlar soni mashina sig'imidan (${d.capacity}) oshmasligi kerak.`);
+  if (S.routes.some((r) => r.driverId === driverId && r.mahallaId === mahallaId && r.date === date && r.status !== "COMPLETED")) fail("Bu haydovchi uchun shu sanada ushbu mahallaga marshrut allaqachon bor.");
+  const pending = S.orders.filter((o) => o.status === "PENDING" && !o.routeId && orderMahalla(o) === mahallaId && !hhById(o.householdId).blocked).sort((a, b) => a.queue - b.queue);
+  if (!pending.length) fail("Bu mahallada navbatda turgan xonadon yo'q.");
+  const r = { id: nid(), driverId, mahallaId, allocated: count, delivered: 0, status: "PLANNED", date, createdAt: Date.now(), startedAt: null, finishedAt: null };
+  S.routes.push(r);
+  const picked = pending.slice(0, count);
+  picked.forEach((o) => { o.status = "APPROVED"; o.routeId = r.id; notifyHousehold(o.householdId, `Marshrutga kiritildingiz. Sana: ${fmtD(new Date(date + "T12:00:00+05:00"))}. Haydovchi: ${d.name}, ${d.car}.`); });
+  audit("Marshrut yaratildi", `#${r.id} ${mById(mahallaId).name}, ${d.name}, ${count} ballon (${picked.length} xonadon band qilindi)`);
+  save(); return { r, n: picked.length };
+}
+function startRoute(rid) {
+  const r = routeById(rid); if (r.status !== "PLANNED") fail("Faqat rejalashtirilgan marshrutni boshlash mumkin.");
+  r.status = "IN_PROGRESS"; r.startedAt = Date.now();
+  S.orders.filter((o) => o.routeId === rid && o.status === "APPROVED").forEach((o) => { o.status = "ON_WAY"; notifyHousehold(o.householdId, `Gaz mashinasi mahallangizga yo'lga chiqdi (${drvById(r.driverId).car}). Xaritada kuzating.`); });
+  audit("Marshrut boshlandi", `#${rid} ${mById(r.mahallaId).name}`); save();
+}
+function deliver(oid, kg, payment) {
+  const o = S.orders.find((x) => x.id === oid);
+  if (!o || !ACTIVE.includes(o.status)) fail("Buyurtma topilmadi yoki allaqachon yakunlangan.");
+  if (!(kg > 0 && kg <= 60)) fail("Og'irlikni to'g'ri kiriting (kg).");
+  const r = o.routeId ? routeById(o.routeId) : null;
+  if (r) { if (r.delivered >= r.allocated) fail("Marshrut bo'yicha ajratilgan ballonlar tugagan."); r.delivered++; }
+  o.status = "DELIVERED"; o.deliveredAt = Date.now(); o.kg = kg; o.payment = payment; o.amount = kg * S.settings.pricePerKg;
+  notifyHousehold(o.householdId, `Gaz balloni topshirildi: ${kg} kg, ${money(o.amount)} (${PAY[payment]}). Keyingi navbat ${fmtD(Date.now() + S.settings.cooldownDays * DAY)} dan ochiladi.`);
+  save();
+}
+function notHome(oid) {
+  const o = S.orders.find((x) => x.id === oid); if (o.status !== "ON_WAY") fail("Holat mos emas.");
+  o.status = "PENDING"; o.routeId = null; o.notHome++;
+  notifyHousehold(o.householdId, "Sizni uyda topa olmadik. Navbatdagi o'rningiz saqlandi — keyingi marshrutda birinchilardan bo'lasiz.");
+  audit("Uyda yo'q", `Buyurtma #${o.queue}, ${hhName(o.householdId)}`); save();
+}
+function finishRoute(rid) {
+  const r = routeById(rid); if (r.status === "COMPLETED") fail("Marshrut allaqachon yakunlangan.");
+  const left = S.orders.filter((o) => o.routeId === rid && (o.status === "APPROVED" || o.status === "ON_WAY"));
+  left.forEach((o) => { o.status = "PENDING"; o.routeId = null; notifyHousehold(o.householdId, "Bugungi marshrut yakunlandi, sizga yetib bo'lmadi. Navbatdagi o'rningiz saqlandi."); });
+  r.status = "COMPLETED"; r.finishedAt = Date.now();
+  audit("Marshrut yakunlandi", `#${rid} ${mById(r.mahallaId).name}: ${r.delivered} topshirildi, ${left.length} navbatga qaytdi`); save();
+  return left.length;
+}
+function manualStatus(oid, status, reason) {
+  if (!reason || reason.trim().length < 5) fail("Sababni kamida 5 belgi bilan yozing.");
+  const o = S.orders.find((x) => x.id === oid); const from = o.status;
+  if (!ACTIVE.includes(from)) fail("Yakunlangan buyurtmani o'zgartirib bo'lmaydi.");
+  if (status === "CANCELLED") { o.status = "CANCELLED"; o.routeId = null; notifyHousehold(o.householdId, `Navbatingiz dispecher tomonidan bekor qilindi. Sabab: ${reason}`); }
+  else if (status === "PENDING") { o.status = "PENDING"; o.routeId = null; }
+  audit("Holat qo'lda o'zgartirildi", `Buyurtma #${o.queue} (${hhName(o.householdId)}): ${LABEL[from]} → ${LABEL[status]}`, reason); save();
+}
+function suspicious() {
+  const out = [];
+  for (const h of S.households) {
+    const accs = hhUsers(h.id).length;
+    if (accs > 3) out.push({ hid: h.id, why: `Bitta xonadonda ${accs} ta akkaunt` });
+    const canc = S.orders.filter((o) => o.householdId === h.id && o.status === "CANCELLED" && o.requestedAt > Date.now() - 30 * DAY).length;
+    if (canc > 2) out.push({ hid: h.id, why: `30 kunda ${canc} marta bekor qilingan` });
+  }
+  const byPhone = {};
+  S.users.filter((u) => u.role === "citizen").forEach((u) => { (byPhone[u.phone] ||= new Set()).add(u.householdId); });
+  for (const [ph, set] of Object.entries(byPhone)) if (set.size > 1) set.forEach((hid) => out.push({ hid, why: `${ph} raqami ${set.size} ta xonadonda` }));
+  return out;
+}
+function stats() {
+  const tk = todayKey();
+  return S.mahallas.map((m) => {
+    const hs = S.households.filter((h) => h.mahallaId === m.id); const ids = new Set(hs.map((h) => h.id));
+    const os = S.orders.filter((o) => ids.has(o.householdId));
+    return { m, households: hs.length, pending: os.filter((o) => o.status === "PENDING").length, routed: os.filter((o) => o.status === "APPROVED").length,
+      onway: os.filter((o) => o.status === "ON_WAY").length, delivered: os.filter((o) => o.status === "DELIVERED").length,
+      today: os.filter((o) => o.status === "DELIVERED" && tzKey(o.deliveredAt) === tk).length,
+      longWait: os.filter((o) => ACTIVE.includes(o.status) && Date.now() - o.requestedAt > S.settings.cooldownDays * DAY).length };
+  });
+}
+function avgWaitDays() {
+  const d = S.orders.filter((o) => o.status === "DELIVERED" && o.deliveredAt > Date.now() - 30 * DAY);
+  return d.length ? d.reduce((s, o) => s + (o.deliveredAt - o.requestedAt), 0) / d.length / DAY : 0;
+}
+
+// =================================================================== xarita (sxematik)
+function geo(mid) {
+  const hs = S.households.filter((h) => h.mahallaId === mid);
+  const streets = [...new Set(hs.map((h) => h.street))].sort();
+  const height = 70 + streets.length * 70;
+  const pos = {};
+  hs.forEach((h) => { const i = streets.indexOf(h.street); const n = Math.min(parseInt(h.house, 10) || 1, 40); pos[h.id] = { x: 170 + (n / 40) * 400, y: 62 + i * 70 }; });
+  return { streets, height, pos, depot: { x: 60, y: height / 2 } };
+}
+function vehiclePos(r, g) {
+  const seq = S.orders.filter((o) => o.routeId === r.id).sort((a, b) => a.queue - b.queue);
+  let from = g.depot, fromT = r.startedAt;
+  for (const o of seq) if (o.status === "DELIVERED" && g.pos[o.householdId]) { if (o.deliveredAt >= fromT) { from = g.pos[o.householdId]; fromT = o.deliveredAt; } }
+  const next = seq.find((o) => o.status === "ON_WAY");
+  if (!next || !g.pos[next.householdId]) return { ...from, arrived: true };
+  const to = g.pos[next.householdId]; const t = Math.max(0, Math.min(1, (Date.now() - fromT) / (100 * 1000)));
+  return { x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t, arrived: t >= 1, next };
+}
+function mapSVG(mid, mine = null) {
+  const g = geo(mid); const tk = todayKey();
+  let s = `<svg viewBox="0 0 620 ${g.height}" role="img" aria-label="${esc(mById(mid).name)} mahallasi xaritasi">`;
+  s += `<rect x="0" y="0" width="620" height="${g.height}" fill="var(--map)"/>`;
+  s += `<line x1="${g.depot.x}" y1="20" x2="${g.depot.x}" y2="${g.height - 20}" stroke="var(--street)" stroke-width="10" stroke-linecap="round"/>`;
+  g.streets.forEach((st, i) => {
+    const y = 62 + i * 70;
+    s += `<line x1="${g.depot.x}" y1="${y}" x2="590" y2="${y}" stroke="var(--street)" stroke-width="10" stroke-linecap="round"/>`;
+    s += `<text x="100" y="${y - 12}" font-size="12" fill="var(--muted)" font-family="Onest, sans-serif">${esc(st)} ko'chasi</text>`;
+  });
+  s += `<g transform="translate(${g.depot.x} ${g.depot.y})"><rect x="-26" y="-18" width="52" height="36" rx="8" fill="var(--ink)"/><text x="0" y="5" text-anchor="middle" font-size="11" font-weight="700" fill="var(--paper)" font-family="Onest, sans-serif">GAZ</text></g>`;
+  for (const [hid, p] of Object.entries(g.pos)) {
+    const o = activeOrderOf(+hid);
+    const delToday = S.orders.some((x) => x.householdId === +hid && x.status === "DELIVERED" && tzKey(x.deliveredAt) === tk);
+    const c = o ? (o.status === "ON_WAY" ? "var(--flame)" : o.status === "APPROVED" ? "var(--steel)" : "var(--warn)") : delToday ? "var(--ok)" : "var(--muted)";
+    const isMine = mine === +hid;
+    s += `<g transform="translate(${p.x} ${p.y})">${isMine ? `<circle r="15" fill="none" stroke="var(--ink)" stroke-width="2" stroke-dasharray="3 3"/>` : ""}<rect x="-9" y="-9" width="18" height="18" rx="4" fill="${c}"/><text y="26" text-anchor="middle" font-size="10.5" fill="var(--muted)" font-family="Onest, sans-serif">${esc(hhById(+hid).house)}${isMine ? " · siz" : ""}</text></g>`;
+  }
+  S.routes.filter((r) => r.mahallaId === mid && r.status === "IN_PROGRESS").forEach((r) => {
+    const v = vehiclePos(r, g); const d = drvById(r.driverId);
+    s += `<g transform="translate(${v.x.toFixed(1)} ${v.y.toFixed(1)})"><circle r="22" fill="var(--flame)" opacity=".18"/><rect x="-16" y="-10" width="32" height="20" rx="5" fill="var(--flame)"/><rect x="6" y="-7" width="8" height="8" rx="2" fill="#fff" opacity=".85"/><text y="-16" text-anchor="middle" font-size="11" font-weight="700" fill="var(--flame)" font-family="Onest, sans-serif">${esc(d.car)}</text></g>`;
+  });
+  return s + "</svg>";
+}
+const legend = `<div class="legend"><span><i style="background:var(--warn)"></i>Navbatda</span><span><i style="background:var(--steel)"></i>Marshrutda</span><span><i style="background:var(--flame)"></i>Yo'lda</span><span><i style="background:var(--ok)"></i>Bugun oldi</span><span><i style="background:var(--muted)"></i>Navbatsiz</span></div>`;
+function gpsLine(r) {
+  if (r.status !== "IN_PROGRESS") return "";
+  const sec = Math.floor(((Date.now() - r.startedAt) / 1000) % S.settings.gpsInterval);
+  return `<span class="gps" data-rid="${r.id}"><span class="dot"></span>GPS: oxirgi signal ${sec} soniya oldin</span>`;
+}
+
+// =================================================================== UI holati
+const ui = { view: "bosh", tab: null, authTab: "login", mfilter: "all", sfilter: "active", openRoute: null, deliverFor: null, statusFor: null, mapM: null };
+const $ = (id) => document.getElementById(id);
+let tt;
+function toast(msg, type = "") { const el = $("toast"); el.textContent = msg; el.className = `toast show ${type}`; clearTimeout(tt); tt = setTimeout(() => (el.className = "toast"), 4200); }
+function act(fn, okMsg) { try { const r = fn(); if (okMsg) toast(typeof okMsg === "function" ? okMsg(r) : okMsg, "success"); } catch (e) { toast(e.message, "error"); } render(); }
+
+const TABS = {
+  citizen: [["navbat", "Navbatim"], ["xarita", "Mashina xaritada"], ["tarix", "Tarix"], ["murojaat", "Murojaatlar"], ["xabar", "Bildirishnomalar"], ["profil", "Profil"]],
+  driver: [["marshrut", "Bugungi marshrut"], ["xarita", "Xarita"], ["tarix", "Topshirilganlar"]],
+  dispatcher: [["panel", "Panel"], ["navbat", "Navbat"], ["marshrut", "Marshrutlar"], ["xarita", "Xarita"], ["murojaat", "Murojaatlar"], ["shubhali", "Shubhali holatlar"], ["hisobot", "Hisobot"]],
+  mfy: [["xonadon", "Xonadonlar"], ["navbat", "Mahalla navbati"]],
+  admin: [["sozlama", "Sozlamalar"], ["foydalanuvchi", "Foydalanuvchilar"], ["haydovchi", "Haydovchilar"], ["mahalla", "Mahallalar"], ["audit", "Audit jurnali"], ["hisobot", "Hisobot"]],
+};
+
+// =================================================================== yuqori panel
+function topbar() {
+  const u = me();
+  const unread = u ? S.notifications.filter((n) => n.userId === u.id && !n.read).length : 0;
+  $("topbar").innerHTML = `
+    <button class="logo" type="button" data-act="home" aria-label="SmartGaz bosh sahifa">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="var(--flame)"/><path d="M16 6c1 4 6 6 6 12a6 6 0 0 1-12 0c0-3 2-5 3-6 0 2 1 3 2 3 0-4-1-6 1-9z" fill="#fff"/></svg>SmartGaz</button>
+    <div class="who">${u ? `
+      <span class="role-badge">${ROLE[u.role]}</span><span class="uname">${esc(u.name)}</span>
+      ${u.role === "citizen" ? `<button class="btn btn-line btn-sm bell" type="button" data-act="tab" data-tab="xabar" aria-label="Bildirishnomalar">Xabarlar${unread ? `<b>${unread}</b>` : ""}</button>` : ""}
+      ${ui.view !== "ilova" ? `<button class="btn btn-flame btn-sm" type="button" data-act="open-app">Kabinetga o'tish</button>` : ""}
+      <button class="btn btn-ink btn-sm" type="button" data-act="logout">Chiqish</button>` : `
+      <button class="btn btn-flame btn-sm" type="button" data-act="login-view">Kirish</button>`}
+    </div>`;
+}
+
+// =================================================================== bosh sahifa
+const CYL = `<svg viewBox="0 0 200 420" role="img" aria-label="Gaz balloni"><defs><linearGradient id="gb" x1="0" x2="1"><stop offset="0" stop-color="#b8361a"/><stop offset=".35" stop-color="#ff6a33"/><stop offset=".6" stop-color="#e8501c"/><stop offset="1" stop-color="#9e2c12"/></linearGradient><linearGradient id="gm" x1="0" x2="1"><stop offset="0" stop-color="#6b7a90"/><stop offset=".4" stop-color="#d6dee8"/><stop offset="1" stop-color="#5a687d"/></linearGradient></defs><rect x="84" y="8" width="32" height="26" rx="5" fill="url(#gm)"/><rect x="94" y="0" width="12" height="12" rx="3" fill="url(#gm)"/><path d="M52 70 Q52 34 100 34 Q148 34 148 70 L148 84 L52 84 Z" fill="url(#gm)"/><rect x="66" y="46" width="68" height="26" rx="10" fill="var(--paper)" opacity=".85"/><path d="M30 140 Q30 84 100 84 Q170 84 170 140 L170 360 Q170 392 100 392 Q30 392 30 360 Z" fill="url(#gb)"/><rect x="30" y="200" width="140" height="6" fill="#000" opacity=".12"/><rect x="30" y="300" width="140" height="6" fill="#000" opacity=".12"/><text x="100" y="252" text-anchor="middle" font-family="Unbounded, Arial Black, sans-serif" font-weight="800" font-size="20" fill="#fff">GAZ</text><text x="100" y="274" text-anchor="middle" font-family="Onest, sans-serif" font-weight="600" font-size="11" fill="#fff" opacity=".85">PROPAN</text><path d="M44 384 L156 384 L150 414 L50 414 Z" fill="url(#gm)"/></svg>`;
+const DEMO = [
+  ["citizen", "jasur@mail.uz", "Fuqaro", "Navbatga turish, o'rni va taxminiy sana, mashinani xaritada kuzatish, murojaat."],
+  ["driver", "haydovchi2@smartgaz.uz", "Haydovchi", "Bugungi marshrut, GPS, ballon topshirish, \"uyda yo'q\"."],
+  ["dispatcher", "dispecher@smartgaz.uz", "Dispecher", "Marshrut yaratish, xarita, murojaatlar, shubhali holatlar, hisobot."],
+  ["mfy", "mfy@smartgaz.uz", "MFY vakili", "Xonadonlarni tasdiqlash, bir necha oila, ehtiyojmand oilalar."],
+  ["admin", "admin@smartgaz.uz", "Administrator", "Sozlamalar (20 kun, kunlik reja, narx), haydovchilar, audit."],
+];
+function viewHome() {
+  const st = stats(); const sum = (k) => st.reduce((s, r) => s + r[k], 0);
+  return `
+  <section class="hero"><div class="wrap">
+    <div>
+      <span class="kicker">Suyultirilgan gaz · elektron navbat platformasi</span>
+      <h1>Gaz balloni uchun navbat endi <em>shaffof</em>.</h1>
+      <p class="lead">SmartGaz fuqaro, haydovchi, dispecher va mahallani bitta platformada birlashtiradi. Xonadon telefondan navbatga turadi, dispecher marshrutni navbat tartibida tuzadi, mashina xaritada ko'rinadi.</p>
+      <div class="row"><button class="btn btn-flame" type="button" data-act="login-view">Platformaga kirish</button><a class="btn btn-line" href="#rollar">Rollar bilan tanishish</a></div>
+      <div class="rules">
+        <div><b class="num">${sum("pending") + sum("routed") + sum("onway")}</b><span>xonadon hozir navbatda</span></div>
+        <div><b class="num">${sum("today")}</b><span>ballon bugun tarqatildi</span></div>
+        <div><b class="num">${S.settings.cooldownDays} kun</b><span>bir xonadonga bitta ballon</span></div>
+      </div>
+    </div>
+    <div class="cyl">${CYL}</div>
+  </div></section>
+  <section class="wrap" id="rollar">
+    <h2 class="sec-title">Bir bosishda istalgan rolda kiring</h2>
+    <div class="roles">${DEMO.map(([r, email, t, d]) => `<button class="role-card" type="button" data-act="quick" data-email="${email}"><b>${t}</b><span>${d}</span><span class="go">Shu rolda kirish →</span></button>`).join("")}</div>
+  </section>`;
+}
+
+// =================================================================== kirish
+function viewLogin() {
+  const login = ui.authTab === "login";
+  return `<main class="wrap app"><div class="grid2" style="margin-top:20px">
+    <div class="card">
+      <h3>Sinov akkauntlari</h3>
+      <p class="muted small" style="margin-top:-6px">Barcha sinov akkauntlarining paroli: <b>demo123</b></p>
+      <ul class="list">${DEMO.map(([r, email, t, d]) => `<li class="row"><div class="grow"><b>${t}</b><div class="small muted">${email}</div></div><button class="btn btn-line btn-sm" type="button" data-act="quick" data-email="${email}">Kirish</button></li>`).join("")}</ul>
+    </div>
+    <div class="card">
+      <div class="tabs" style="padding-top:0">
+        <button type="button" class="${login ? "on" : ""}" data-act="auth-tab" data-tab="login">Kirish</button>
+        <button type="button" class="${!login ? "on" : ""}" data-act="auth-tab" data-tab="signup">Fuqaro sifatida ro'yxatdan o'tish</button>
+      </div>
+      ${login ? `
+      <form data-form="login" novalidate>
+        <div class="field"><label for="l_email">Email</label><input id="l_email" name="email" type="email" autocomplete="email" placeholder="ism@mail.uz"></div>
+        <div class="field"><label for="l_pw">Parol</label><input id="l_pw" name="password" type="password" autocomplete="current-password"></div>
+        <button class="btn btn-flame" type="submit">Kirish</button>
+      </form>` : `
+      <form data-form="signup" novalidate>
+        <div class="f2">
+          <div class="field"><label for="s_name">Ism-familiya</label><input id="s_name" name="name" placeholder="Abdullayeva Mohira"></div>
+          <div class="field"><label for="s_phone">Telefon</label><input id="s_phone" name="phone" inputmode="tel" placeholder="+998 90 555 12 34"></div>
+          <div class="field"><label for="s_email">Email</label><input id="s_email" name="email" type="email" placeholder="ism@mail.uz"></div>
+          <div class="field"><label for="s_pw">Parol</label><input id="s_pw" name="password" type="password" placeholder="kamida 6 belgi"></div>
+        </div>
+        <div class="field"><label for="s_m">Mahalla</label><select id="s_m" name="mahallaId">${S.mahallas.map((m) => `<option value="${m.id}">${esc(m.name)} MFY — ${esc(m.district)}, ${esc(m.region)}</option>`).join("")}</select></div>
+        <div class="f3">
+          <div class="field"><label for="s_st">Ko'cha</label><input id="s_st" name="street" placeholder="Bog'bon"></div>
+          <div class="field"><label for="s_h">Uy raqami</label><input id="s_h" name="house" placeholder="31"></div>
+          <div class="field"><label for="s_fs">Oila a'zolari</label><input id="s_fs" name="familySize" type="number" min="1" max="30" value="4"></div>
+        </div>
+        <div class="field"><label for="s_card">Gaz ID-karta raqami (ixtiyoriy)</label><input id="s_card" name="cardId" placeholder="FG-000000"></div>
+        <div class="row"><button class="btn btn-flame" type="submit">Ro'yxatdan o'tish</button><button class="btn btn-line" type="button" data-act="sample-signup">Namuna bilan to'ldirish</button></div>
+      </form>`}
+    </div>
+  </div></main>`;
+}
+
+// =================================================================== fuqaro
+function vCitizen() {
+  const u = me(); const h = hhById(u.householdId); const m = mById(h.mahallaId);
+  const head = `<div class="page-head"><div><h2>Assalomu alaykum, ${esc(u.name.split(" ")[1] || u.name)}!</h2><div class="muted">${esc(m.name)} MFY, ${esc(hhLabel(h))} · ${h.verified ? `<span class="pill ok">MFY tasdiqlagan</span>` : `<span class="pill muted">MFY tasdig'i kutilmoqda</span>`}${h.blocked ? ` <span class="pill bad">Bloklangan</span>` : ""}</div></div></div>`;
+  const tab = ui.tab;
+  if (tab === "navbat") {
+    const q = queueInfo(h.id); const end = cooldownEnd(h.id); const last = lastDelivery(h.id);
+    let status;
+    if (q.order) {
+      const r = q.order.routeId ? routeById(q.order.routeId) : null;
+      status = `<div class="metrics"><div class="metric"><b class="num">${q.pos}</b><span>mahalladagi o'rningiz</span></div><div class="metric"><b class="num">${q.total}</b><span>jami navbatda</span></div><div class="metric"><b class="num">#${q.order.queue}</b><span>navbat raqami</span></div></div>
+        <div class="note info">Holat: ${pill(q.order.status)} · Taxminiy yetkazish: <b>${q.order.status === "ON_WAY" ? "bugun" : fmtD(q.est)}</b>${r ? ` · Haydovchi: ${esc(drvById(r.driverId).name)}, ${esc(drvById(r.driverId).car)}` : ""}</div>
+        ${q.order.status === "ON_WAY" ? `<div class="note warn">Mashina yo'lda. «Mashina xaritada» bo'limida kuzating.</div>` : ""}
+        ${q.order.status !== "ON_WAY" ? (ui.confirmCancel ? `<div class="row" style="margin-top:12px"><button class="btn btn-bad grow" type="button" data-act="cancel-yes">Ha, bekor qilish</button><button class="btn btn-line grow" type="button" data-act="cancel-no">Yo'q, qolsin</button></div>` : `<button class="btn btn-line" style="width:100%;margin-top:12px" type="button" data-act="cancel-ask">Navbatni bekor qilish</button>`) : ""}`;
+    } else {
+      status = `<p class="muted" style="margin:0">Faol navbatingiz yo'q. Mahallangizda <b class="num">${q.total}</b> ta xonadon navbatda.</p>
+        ${end && end > Date.now() ? `<div class="note warn">Oxirgi ballon ${fmtDT(last)} da olingan. Keyingi navbat <b>${fmtD(end)}</b> dan ochiladi.</div>` : ""}`;
+    }
+    return head + `<div class="grid-main">
+      <div class="stack">
+        <div class="card"><button class="btn btn-flame btn-big" type="button" data-act="order">Gazga navbatga turish</button>
+          <p class="small muted" style="margin:10px 0 0">Bir xonadon ${S.settings.cooldownDays} kunda bir marta navbatga tura oladi. Mahalla bo'yicha kunlik reja: ${S.settings.dailyPlan} ballon.</p></div>
+        <div class="card"><h3>Navbat holati</h3>${status}</div>
+      </div>
+      <div class="card"><h3>So'nggi xabarlar</h3>${notifList(u.id, 4)}</div>
+    </div>`;
+  }
+  if (tab === "xarita") {
+    const r = S.routes.find((x) => x.mahallaId === h.mahallaId && x.status === "IN_PROGRESS");
+    return head + `<div class="card"><div class="row" style="margin-bottom:10px"><h3 class="grow" style="margin:0">${esc(m.name)} MFY xaritasi</h3>${r ? `${gpsLine(r)} <span class="pill ON_WAY">${esc(drvById(r.driverId).car)} yo'lda</span>` : `<span class="pill muted">Hozir mahallangizda mashina yo'q</span>`}</div>
+      <div class="map" data-live-map="${h.mahallaId}" data-mine="${h.id}">${mapSVG(h.mahallaId, h.id)}</div>${legend}</div>`;
+  }
+  if (tab === "tarix") {
+    const os = S.orders.filter((o) => o.householdId === h.id).sort((a, b) => b.requestedAt - a.requestedAt);
+    return head + `<div class="card"><h3>Xonadon buyurtmalari tarixi</h3>${os.length ? `<div class="table-wrap"><table><thead><tr><th>№</th><th>Navbatga turgan</th><th>Holat</th><th>Topshirilgan</th><th>Og'irlik</th><th>Summa</th></tr></thead><tbody>${os.map((o) => `<tr><td class="num"><b>#${o.queue}</b></td><td class="num">${fmtDT(o.requestedAt)}</td><td>${pill(o.status)}</td><td class="num">${fmtDT(o.deliveredAt)}</td><td class="num">${o.kg ? o.kg + " kg" : "—"}</td><td class="num">${o.amount ? money(o.amount) : "—"}</td></tr>`).join("")}</tbody></table></div>` : `<div class="empty">Hali buyurtma yo'q.</div>`}</div>`;
+  }
+  if (tab === "murojaat") {
+    const cs = S.complaints.filter((c) => c.userId === u.id).sort((a, b) => b.at - a.at);
+    return head + `<div class="grid2"><div class="card"><h3>Yangi murojaat</h3><form data-form="complaint" novalidate>
+      <div class="field"><label for="c_t">Mavzu</label><select id="c_t" name="type"><option>Kechikish</option><option>Og'irlik</option><option>Haydovchi muomalasi</option><option>Ma'lumot xato</option><option>Boshqa</option></select></div>
+      <div class="field"><label for="c_x">Matn</label><textarea id="c_x" name="text" placeholder="Muammoni qisqacha yozing"></textarea></div>
+      <button class="btn btn-flame" type="submit">Yuborish</button></form></div>
+      <div class="card"><h3>Murojaatlarim</h3>${cs.length ? `<ul class="list">${cs.map((c) => `<li><div class="row"><b class="grow">${esc(c.type)}</b>${c.status === "NEW" ? `<span class="pill PENDING">Ko'rib chiqilmoqda</span>` : `<span class="pill ok">Javob berilgan</span>`}</div><div class="small muted">${fmtDT(c.at)}</div><p style="margin:6px 0">${esc(c.text)}</p>${c.answer ? `<div class="note ok">Dispecher: ${esc(c.answer)}</div>` : ""}</li>`).join("")}</ul>` : `<div class="empty">Murojaat yo'q.</div>`}</div></div>`;
+  }
+  if (tab === "xabar") {
+    return head + `<div class="card"><h3>Bildirishnomalar</h3>${notifList(u.id, 50)}</div>`;
+  }
+  if (tab === "profil") {
+    const active = activeOrderOf(h.id);
+    return head + `<div class="card" style="max-width:640px"><h3>Profil va xonadon</h3><form data-form="profile" novalidate>
+      <div class="f2"><div class="field"><label for="p_n">Ism-familiya</label><input id="p_n" name="name" value="${esc(u.name)}"></div>
+      <div class="field"><label for="p_p">Telefon</label><input id="p_p" name="phone" value="${esc(u.phone)}"></div></div>
+      <div class="f3"><div class="field"><label for="p_st">Ko'cha</label><input id="p_st" name="street" value="${esc(h.street)}" ${active ? "disabled" : ""}></div>
+      <div class="field"><label for="p_h">Uy</label><input id="p_h" name="house" value="${esc(h.house)}" ${active ? "disabled" : ""}></div>
+      <div class="field"><label for="p_fs">Oila a'zolari</label><input id="p_fs" name="familySize" type="number" min="1" max="30" value="${h.familySize}"></div></div>
+      <div class="field"><label for="p_c">Gaz ID-karta</label><input id="p_c" name="cardId" value="${esc(h.cardId)}"></div>
+      ${active ? `<div class="note warn" style="margin-bottom:12px">Faol navbatingiz bor — manzilni o'zgartirish uchun avval navbatni bekor qiling.</div>` : ""}
+      <button class="btn btn-flame" type="submit">Saqlash</button></form></div>`;
+  }
+  return "";
+}
+function notifList(uid, n) {
+  const ns = S.notifications.filter((x) => x.userId === uid).sort((a, b) => b.at - a.at).slice(0, n);
+  return ns.length ? `<ul class="list">${ns.map((x) => `<li><div class="row"><span class="grow">${x.read ? "" : "<b>● </b>"}${esc(x.text)}</span></div><div class="small muted">${ago(x.at)}</div></li>`).join("")}</ul>` : `<div class="empty">Xabarlar yo'q.</div>`;
+}
+
+// =================================================================== haydovchi
+function vDriver() {
+  const u = me(); const d = drvById(u.driverId);
+  const head = `<div class="page-head"><div><h2>${esc(d.name)}</h2><div class="muted">${esc(d.car)} · sig'imi ${d.capacity} ballon</div></div></div>`;
+  const routes = S.routes.filter((r) => r.driverId === d.id && (r.date === todayKey() || r.status === "IN_PROGRESS")).sort((a, b) => a.id - b.id);
+  if (ui.tab === "marshrut") {
+    if (!routes.length) return head + `<div class="card"><div class="empty">Bugun sizga marshrut biriktirilmagan.</div></div>`;
+    return head + `<div class="stack">${routes.map((r) => {
+      const os = S.orders.filter((o) => o.routeId === r.id).sort((a, b) => a.queue - b.queue);
+      return `<div class="card"><div class="row" style="margin-bottom:10px"><h3 class="grow" style="margin:0">#${r.id} · ${esc(mById(r.mahallaId).name)} MFY</h3>${gpsLine(r)} ${pill(r.status, RLABEL)}</div>
+        <div class="row small muted" style="margin-bottom:6px"><span class="grow">Topshirildi: <b class="num">${r.delivered} / ${r.allocated}</b></span></div>
+        <div class="bar" style="margin-bottom:14px"><i style="width:${Math.round((r.delivered / r.allocated) * 100)}%"></i></div>
+        <div class="table-wrap"><table><thead><tr><th>№</th><th>Xonadon</th><th>Manzil</th><th>Holat</th><th>Amal</th></tr></thead><tbody>
+        ${os.map((o) => { const h = hhById(o.householdId); const open = ui.deliverFor === o.id; return `<tr${open ? ' class="sel"' : ""}>
+          <td class="num"><b>#${o.queue}</b></td><td>${esc(hhName(h.id))}<div class="small muted num">${esc(hhUsers(h.id)[0]?.phone || "")}</div></td>
+          <td>${esc(hhLabel(h))}${h.cardId ? `<div class="small muted">ID: ${esc(h.cardId)}</div>` : ""}</td><td>${pill(o.status)}</td>
+          <td>${o.status === "ON_WAY" ? (open ? deliverForm(o) : `<div class="row"><button class="btn btn-ok btn-sm" type="button" data-act="deliver-open" data-id="${o.id}">Topshirildi</button><button class="btn btn-warn btn-sm" type="button" data-act="nothome" data-id="${o.id}">Uyda yo'q</button></div>`) : o.status === "DELIVERED" ? `<span class="small muted">${fmtT(o.deliveredAt)}, ${o.kg} kg</span>` : "—"}</td></tr>`; }).join("")}
+        </tbody></table></div>
+        <div class="row" style="margin-top:14px">${r.status === "PLANNED" ? `<button class="btn btn-flame" type="button" data-act="route-start" data-id="${r.id}">Marshrutni boshlash</button>` : ""}${r.status === "IN_PROGRESS" ? `<button class="btn btn-ink" type="button" data-act="route-finish" data-id="${r.id}">Marshrutni yakunlash</button>` : ""}</div>
+      </div>`; }).join("")}</div>`;
+  }
+  if (ui.tab === "xarita") {
+    const r = routes.find((x) => x.status === "IN_PROGRESS") || routes[0];
+    if (!r) return head + `<div class="card"><div class="empty">Faol marshrut yo'q.</div></div>`;
+    return head + `<div class="card"><div class="row" style="margin-bottom:10px"><h3 class="grow" style="margin:0">${esc(mById(r.mahallaId).name)} MFY</h3>${gpsLine(r)}</div><div class="map" data-live-map="${r.mahallaId}">${mapSVG(r.mahallaId)}</div>${legend}</div>`;
+  }
+  if (ui.tab === "tarix") {
+    const os = S.orders.filter((o) => o.status === "DELIVERED" && o.routeId && routeById(o.routeId)?.driverId === d.id).sort((a, b) => b.deliveredAt - a.deliveredAt);
+    return head + `<div class="card"><h3>Topshirilgan ballonlar</h3>${os.length ? `<div class="table-wrap"><table><thead><tr><th>Vaqt</th><th>Xonadon</th><th>Og'irlik</th><th>To'lov</th><th>Summa</th></tr></thead><tbody>${os.map((o) => `<tr><td class="num">${fmtDT(o.deliveredAt)}</td><td>${esc(hhName(o.householdId))}<div class="small muted">${esc(hhLabel(hhById(o.householdId)))}</div></td><td class="num">${o.kg} kg</td><td>${PAY[o.payment]}</td><td class="num">${money(o.amount)}</td></tr>`).join("")}</tbody></table></div>` : `<div class="empty">Hali yo'q.</div>`}</div>`;
+  }
+  return "";
+}
+function deliverForm(o) {
+  return `<form class="inline-form" data-form="deliver" data-id="${o.id}" novalidate>
+    <div class="field"><label for="d_kg">Og'irlik, kg</label><input id="d_kg" name="kg" type="number" step="0.1" min="1" max="60" value="${S.settings.defaultKg}"></div>
+    <div class="field"><label for="d_pay">To'lov</label><select id="d_pay" name="payment">${Object.entries(PAY).map(([k, v]) => `<option value="${k}">${v}</option>`).join("")}</select></div>
+    <button class="btn btn-ok btn-sm" type="submit">Tasdiqlash</button><button class="btn btn-line btn-sm" type="button" data-act="deliver-close">Bekor</button></form>`;
+}
+
+// =================================================================== dispecher
+function kpiBlock() {
+  const st = stats(); const sum = (k) => st.reduce((s, r) => s + r[k], 0);
+  return `<div class="kpis">
+    <div class="kpi" style="--c:var(--warn)"><span>Kutayotgan navbat</span><b class="num">${sum("pending")}</b></div>
+    <div class="kpi" style="--c:var(--steel)"><span>Marshrutda / yo'lda</span><b class="num">${sum("routed")} / ${sum("onway")}</b></div>
+    <div class="kpi" style="--c:var(--ok)"><span>Bugun tarqatildi</span><b class="num">${sum("today")}</b></div>
+    <div class="kpi" style="--c:var(--flame)"><span>${S.settings.cooldownDays}+ kun kutganlar</span><b class="num">${sum("longWait")}</b></div>
+    <div class="kpi" style="--c:var(--ink)"><span>O'rtacha kutish (30 kun)</span><b class="num">${avgWaitDays().toFixed(1)} kun</b></div></div>`;
+}
+function mahallaTable() {
+  return `<div class="table-wrap"><table><thead><tr><th>Mahalla</th><th>Xonadon</th><th>Navbatda</th><th>Marshrutda</th><th>Yo'lda</th><th>Bugun</th><th>Jami berilgan</th><th>Uzoq kutish</th></tr></thead><tbody class="num">${stats().map((r) => `<tr><td><b>${esc(r.m.name)}</b><div class="small muted">${esc(r.m.district)}</div></td><td>${r.households}</td><td>${r.pending}</td><td>${r.routed}</td><td>${r.onway}</td><td>${r.today}</td><td>${r.delivered}</td><td>${r.longWait ? `<span class="pill bad">${r.longWait}</span>` : "0"}</td></tr>`).join("")}</tbody></table></div>`;
+}
+function vDispatcher() {
+  const tab = ui.tab;
+  const head = (t, sub = "") => `<div class="page-head"><div><h2>${t}</h2>${sub ? `<div class="muted">${sub}</div>` : ""}</div></div>`;
+  if (tab === "panel") {
+    const live = S.routes.filter((r) => r.status === "IN_PROGRESS");
+    const newC = S.complaints.filter((c) => c.status === "NEW").length;
+    return head("Dispecher paneli", "Oltiariq tumani") + kpiBlock() + `<div class="grid-main">
+      <div class="card"><h3>Mahallalar bo'yicha</h3>${mahallaTable()}</div>
+      <div class="stack">
+        <div class="card"><h3>Yo'ldagi mashinalar</h3>${live.length ? `<ul class="list">${live.map((r) => `<li><div class="row"><b class="grow">${esc(drvById(r.driverId).car)} · ${esc(mById(r.mahallaId).name)}</b><span class="num small">${r.delivered}/${r.allocated}</span></div><div class="small muted">${esc(drvById(r.driverId).name)} · ${gpsLine(r)}</div></li>`).join("")}</ul>` : `<div class="empty">Hozir yo'lda mashina yo'q.</div>`}</div>
+        <div class="card"><h3>Diqqat talab qiladi</h3><ul class="list">
+          <li class="row"><span class="grow">Javobsiz murojaatlar</span><button class="btn btn-line btn-sm" type="button" data-act="tab" data-tab="murojaat">${newC} ta</button></li>
+          <li class="row"><span class="grow">Shubhali holatlar</span><button class="btn btn-line btn-sm" type="button" data-act="tab" data-tab="shubhali">${new Set(suspicious().map((x) => x.hid)).size} ta xonadon</button></li>
+          <li class="row"><span class="grow">MFY tasdig'ini kutayotgan xonadonlar</span><span class="pill muted">${S.households.filter((h) => !h.verified).length} ta</span></li></ul></div>
+      </div></div>`;
+  }
+  if (tab === "navbat") {
+    let os = S.orders.slice();
+    if (ui.mfilter !== "all") os = os.filter((o) => orderMahalla(o) === +ui.mfilter);
+    if (ui.sfilter === "active") os = os.filter((o) => ACTIVE.includes(o.status)); else if (ui.sfilter !== "all") os = os.filter((o) => o.status === ui.sfilter);
+    os.sort((a, b) => (orderMahalla(a) - orderMahalla(b)) || a.queue - b.queue);
+    return head("Navbat", "FIFO tartibida, mahalla bo'yicha") + `<div class="card">
+      <div class="row" style="margin-bottom:12px">
+        <div class="field" style="margin:0"><label for="f_m">Mahalla</label><select id="f_m" data-filter="mfilter"><option value="all">Barchasi</option>${S.mahallas.map((m) => `<option value="${m.id}" ${+ui.mfilter === m.id ? "selected" : ""}>${esc(m.name)}</option>`).join("")}</select></div>
+        <div class="field" style="margin:0"><label for="f_s">Holat</label><select id="f_s" data-filter="sfilter">${[["active", "Faollar"], ["all", "Barchasi"], ...Object.entries(LABEL)].map(([k, v]) => `<option value="${k}" ${ui.sfilter === k ? "selected" : ""}>${v}</option>`).join("")}</select></div>
+        <span class="grow"></span><button class="btn btn-line btn-sm" type="button" data-act="copy-csv">CSV nusxalash</button></div>
+      ${os.length ? `<div class="table-wrap"><table><thead><tr><th>Mahalla / №</th><th>Xonadon</th><th>Navbatga turgan</th><th>Kutish</th><th>Holat</th><th>Amal</th></tr></thead><tbody>${os.map((o) => {
+        const h = hhById(o.householdId); const days = Math.floor(((o.deliveredAt || Date.now()) - o.requestedAt) / DAY); const open = ui.statusFor === o.id;
+        return `<tr${open ? ' class="sel"' : ""}><td><b>${esc(mById(h.mahallaId).name)}</b> <span class="num">#${o.queue}</span></td><td>${esc(hhName(h.id))}<div class="small muted">${esc(hhLabel(h))}</div>${h.needy ? `<span class="pill APPROVED">Ehtiyojmand</span> ` : ""}${o.notHome ? `<span class="pill muted">Uyda yo'q: ${o.notHome}</span>` : ""}</td>
+        <td class="num">${fmtDT(o.requestedAt)}</td><td class="num">${ACTIVE.includes(o.status) && days >= S.settings.cooldownDays ? `<span class="pill bad">${days} kun</span>` : `${days} kun`}</td><td>${pill(o.status)}</td>
+        <td>${ACTIVE.includes(o.status) ? (open ? `<form class="inline-form" data-form="status" data-id="${o.id}" novalidate><div class="field"><label for="st_v">Yangi holat</label><select id="st_v" name="status"><option value="CANCELLED">Bekor qilish</option>${o.status !== "PENDING" ? `<option value="PENDING">Navbatga qaytarish</option>` : ""}</select></div><div class="field"><label for="st_r">Sabab</label><input id="st_r" name="reason" placeholder="majburiy"></div><button class="btn btn-ink btn-sm" type="submit">Saqlash</button><button class="btn btn-line btn-sm" type="button" data-act="status-close">Yopish</button></form>` : `<button class="btn btn-line btn-sm" type="button" data-act="status-open" data-id="${o.id}">O'zgartirish</button>`) : "—"}</td></tr>`; }).join("")}</tbody></table></div>` : `<div class="empty">Tanlangan filtr bo'yicha buyurtma yo'q.</div>`}</div>`;
+  }
+  if (tab === "marshrut") {
+    const rs = S.routes.slice().sort((a, b) => b.id - a.id);
+    return head("Marshrutlar", "Yaratilganda navbatdagi xonadonlar FIFO bo'yicha avtomatik band qilinadi") + `<div class="grid-main">
+      <div class="card"><h3>Barcha marshrutlar</h3>${rs.length ? `<ul class="list">${rs.map((r) => { const d = drvById(r.driverId); const open = ui.openRoute === r.id;
+        return `<li><div class="row"><b class="grow">#${r.id} · ${esc(mById(r.mahallaId).name)} · ${fmtD(new Date(r.date + "T12:00:00+05:00"))}</b>${pill(r.status, RLABEL)}</div>
+          <div class="small muted">${esc(d.name)}, ${esc(d.car)} · ${r.delivered}/${r.allocated} topshirildi</div><div class="bar" style="margin:8px 0"><i style="width:${Math.round((r.delivered / r.allocated) * 100)}%"></i></div>
+          <button class="btn btn-line btn-sm" type="button" data-act="route-toggle" data-id="${r.id}">${open ? "Yopish" : "Xonadonlar"}</button>
+          ${open ? `<ul class="list small">${S.orders.filter((o) => o.routeId === r.id).sort((a, b) => a.queue - b.queue).map((o) => `<li class="row"><span class="num">#${o.queue}</span><span class="grow">${esc(hhName(o.householdId))}, ${esc(hhLabel(hhById(o.householdId)))}</span>${pill(o.status)}</li>`).join("") || `<li class="muted">Xonadonlar navbatga qaytarilgan</li>`}</ul>` : ""}</li>`; }).join("")}</ul>` : `<div class="empty">Marshrut yo'q.</div>`}</div>
+      <div class="card"><h3>Yangi marshrut</h3><form data-form="route" novalidate>
+        <div class="field"><label for="r_d">Haydovchi</label><select id="r_d" name="driverId">${S.drivers.filter((d) => d.active).map((d) => `<option value="${d.id}">${esc(d.name)} — ${esc(d.car)} (${d.capacity})</option>`).join("")}</select></div>
+        <div class="field"><label for="r_m">Mahalla</label><select id="r_m" name="mahallaId">${stats().map((s) => `<option value="${s.m.id}">${esc(s.m.name)} — navbatda ${s.pending}</option>`).join("")}</select></div>
+        <div class="f2"><div class="field"><label for="r_c">Ballonlar soni</label><input id="r_c" name="count" type="number" min="1" value="5"></div>
+        <div class="field"><label for="r_dt">Sana</label><input id="r_dt" name="date" type="date" value="${todayKey()}"></div></div>
+        <button class="btn btn-flame" type="submit">Marshrut yaratish</button></form></div></div>`;
+  }
+  if (tab === "xarita") {
+    const mid = ui.mapM || S.mahallas[0].id;
+    return head("Xarita", "Mashinalar har " + S.settings.gpsInterval + " soniyada joylashuv yuboradi") + `<div class="card">
+      <div class="tabs" style="padding-top:0">${S.mahallas.map((m) => `<button type="button" class="${m.id === mid ? "on" : ""}" data-act="map-m" data-id="${m.id}">${esc(m.name)}${S.routes.some((r) => r.mahallaId === m.id && r.status === "IN_PROGRESS") ? `<span class="cnt">mashina</span>` : ""}</button>`).join("")}</div>
+      <div class="map" data-live-map="${mid}">${mapSVG(mid)}</div>${legend}</div>`;
+  }
+  if (tab === "murojaat") {
+    const cs = S.complaints.slice().sort((a, b) => (a.status === "NEW" ? -1 : 1) - (b.status === "NEW" ? -1 : 1) || b.at - a.at);
+    return head("Murojaatlar") + `<div class="card">${cs.length ? `<ul class="list">${cs.map((c) => { const u = userById(c.userId); const h = hhById(u.householdId);
+      return `<li><div class="row"><b class="grow">${esc(c.type)} · ${esc(u.name)}</b>${c.status === "NEW" ? `<span class="pill PENDING">Yangi</span>` : `<span class="pill ok">Javob berilgan</span>`}</div>
+        <div class="small muted">${esc(mById(h.mahallaId).name)}, ${esc(hhLabel(h))} · ${fmtDT(c.at)}</div><p style="margin:6px 0">${esc(c.text)}</p>
+        ${c.answer ? `<div class="note ok">Javob: ${esc(c.answer)}</div>` : `<form class="inline-form" data-form="answer" data-id="${c.id}" novalidate style="display:grid;grid-template-columns:1fr auto"><div class="field"><label for="a_${c.id}">Javob</label><input id="a_${c.id}" name="answer" style="width:100%" placeholder="Fuqaroga javob"></div><button class="btn btn-ink btn-sm" type="submit">Yuborish</button></form>`}</li>`; }).join("")}</ul>` : `<div class="empty">Murojaat yo'q.</div>`}</div>`;
+  }
+  if (tab === "shubhali") {
+    const sus = suspicious(); const byH = {}; sus.forEach((x) => (byH[x.hid] ||= []).push(x.why));
+    const blocked = S.households.filter((h) => h.blocked && !byH[h.id]);
+    const rows = [...Object.keys(byH).map(Number), ...blocked.map((h) => h.id)];
+    return head("Shubhali holatlar", "Antifrod qoidalari asosida avtomatik aniqlangan") + `<div class="card">${rows.length ? `<div class="table-wrap"><table><thead><tr><th>Xonadon</th><th>Sabab</th><th>Holat</th><th>Amal</th></tr></thead><tbody>${rows.map((hid) => { const h = hhById(hid);
+      return `<tr><td>${esc(hhName(hid))}<div class="small muted">${esc(mById(h.mahallaId).name)}, ${esc(hhLabel(h))}</div></td><td>${(byH[hid] || ["Qo'lda bloklangan"]).map(esc).join("<br>")}</td><td>${h.blocked ? `<span class="pill bad">Bloklangan</span>` : `<span class="pill muted">Faol</span>`}</td>
+      <td><button class="btn ${h.blocked ? "btn-line" : "btn-bad"} btn-sm" type="button" data-act="block" data-id="${hid}">${h.blocked ? "Blokdan chiqarish" : "Bloklash"}</button></td></tr>`; }).join("")}</tbody></table></div>` : `<div class="empty">Shubhali holat aniqlanmadi.</div>`}</div>`;
+  }
+  if (tab === "hisobot") return head("Hisobot") + reportBlock();
+  return "";
+}
+function reportBlock() {
+  const days = [...Array(7)].map((_, i) => tzKey(Date.now() - (6 - i) * DAY));
+  const vals = days.map((k) => S.orders.filter((o) => o.status === "DELIVERED" && tzKey(o.deliveredAt) === k).length);
+  const max = Math.max(4, ...vals); const W = 560, Hh = 200, bw = 52;
+  let svg = `<svg viewBox="0 0 ${W} ${Hh + 40}" style="width:100%;height:auto" role="img" aria-label="So'nggi 7 kunda tarqatilgan ballonlar">`;
+  [0, 0.5, 1].forEach((f) => { const y = 10 + Hh - f * Hh; svg += `<line x1="30" x2="${W}" y1="${y}" y2="${y}" stroke="var(--line)"/><text x="24" y="${y + 4}" text-anchor="end" font-size="11" fill="var(--muted)">${Math.round(max * f)}</text>`; });
+  vals.forEach((v, i) => { const x = 50 + i * 74; const h = (v / max) * Hh; const last = i === 6;
+    svg += `<rect x="${x}" y="${10 + Hh - h}" width="${bw}" height="${Math.max(h, 2)}" rx="6" fill="${last ? "var(--flame)" : "var(--steel)"}" opacity="${last ? 1 : 0.75}"/><text x="${x + bw / 2}" y="${Hh + 6 - h}" text-anchor="middle" font-size="12" font-weight="700" fill="var(--ink)">${v}</text><text x="${x + bw / 2}" y="${Hh + 30}" text-anchor="middle" font-size="11" fill="var(--muted)">${days[i].slice(8, 10)}.${days[i].slice(5, 7)}</text>`; });
+  svg += "</svg>";
+  const delivered30 = S.orders.filter((o) => o.status === "DELIVERED" && o.deliveredAt > Date.now() - 30 * DAY);
+  const kg = delivered30.reduce((s, o) => s + (o.kg || 0), 0), sum = delivered30.reduce((s, o) => s + (o.amount || 0), 0);
+  return kpiBlock() + `<div class="grid-main"><div class="card"><h3>So'nggi 7 kunda tarqatilgan ballonlar</h3>${svg}</div>
+    <div class="card"><h3>30 kunlik yakun</h3><ul class="list"><li class="row"><span class="grow">Topshirilgan ballonlar</span><b class="num">${delivered30.length}</b></li><li class="row"><span class="grow">Jami gaz</span><b class="num">${kg} kg</b></li><li class="row"><span class="grow">Jami summa</span><b class="num">${money(sum)}</b></li><li class="row"><span class="grow">Ehtiyojmand oilalarga</span><b class="num">${delivered30.filter((o) => hhById(o.householdId).needy).length}</b></li></ul>
+    <button class="btn btn-line btn-sm" style="margin-top:12px" type="button" data-act="copy-csv">Hisobotni CSV qilib nusxalash</button></div></div>
+    <div class="card" style="margin-top:16px"><h3>Mahallalar bo'yicha</h3>${mahallaTable()}</div>`;
+}
+
+// =================================================================== MFY
+function vMfy() {
+  const u = me(); const m = mById(u.mahallaId);
+  const hs = S.households.filter((h) => h.mahallaId === m.id).sort((a, b) => a.street.localeCompare(b.street) || (+a.house - +b.house));
+  const head = `<div class="page-head"><div><h2>${esc(m.name)} MFY</h2><div class="muted">${hs.length} xonadon · ${hs.filter((h) => !h.verified).length} tasi tasdiq kutmoqda</div></div></div>`;
+  if (ui.tab === "xonadon") return head + `<div class="card"><div class="table-wrap"><table><thead><tr><th>Xonadon</th><th>Oila</th><th>Holat</th><th>Bir necha oila</th><th>Ehtiyojmand</th></tr></thead><tbody>${hs.map((h) => `<tr>
+    <td><b>${esc(hhLabel(h))}</b><div class="small muted">${esc(hhUsers(h.id).map((x) => x.name).join(", ") || "—")}</div></td><td class="num">${h.familySize} kishi</td>
+    <td>${h.verified ? `<span class="pill ok">Tasdiqlangan</span>` : `<button class="btn btn-ok btn-sm" type="button" data-act="verify" data-id="${h.id}">Tasdiqlash</button>`}</td>
+    <td>${h.multiFamily ? `<span class="pill APPROVED">Ha, dalolatnoma ${esc(h.actNo)}</span> <button class="btn btn-line btn-sm" type="button" data-act="multi-off" data-id="${h.id}">Bekor</button>` : `<form class="row" data-form="multi" data-id="${h.id}" novalidate><input aria-label="Dalolatnoma raqami" name="act" placeholder="Dalolatnoma №" style="width:130px;padding:7px 9px;border-radius:9px;border:1.5px solid var(--line);background:var(--paper)"><button class="btn btn-line btn-sm" type="submit">Belgilash</button></form>`}</td>
+    <td><button class="btn ${h.needy ? "btn-warn" : "btn-line"} btn-sm" type="button" data-act="needy" data-id="${h.id}">${h.needy ? "Ha" : "Yo'q"}</button></td></tr>`).join("")}</tbody></table></div>
+    <p class="small muted" style="margin:12px 0 0">Bir kadastr raqamli uyda alohida oshxona va gaz plitasi bo'lgan oilalar mahalla va gaz ta'minoti xodimlari tuzgan o'rganish dalolatnomasi asosida alohida xonadon sifatida belgilanadi.</p></div>`;
+  if (ui.tab === "navbat") {
+    const os = activeInMahalla(m.id).sort((a, b) => a.queue - b.queue);
+    return head + `<div class="card"><div class="table-wrap"><table><thead><tr><th>№</th><th>Xonadon</th><th>Navbatga turgan</th><th>Holat</th></tr></thead><tbody>${os.map((o) => `<tr><td class="num"><b>#${o.queue}</b></td><td>${esc(hhName(o.householdId))}<div class="small muted">${esc(hhLabel(hhById(o.householdId)))}</div></td><td class="num">${fmtDT(o.requestedAt)}</td><td>${pill(o.status)}</td></tr>`).join("") || `<tr><td colspan="4" class="empty">Navbat bo'sh</td></tr>`}</tbody></table></div></div>`;
+  }
+  return "";
+}
+
+// =================================================================== admin
+function vAdmin() {
+  const head = (t, sub = "") => `<div class="page-head"><div><h2>${t}</h2>${sub ? `<div class="muted">${sub}</div>` : ""}</div></div>`;
+  const s = S.settings;
+  if (ui.tab === "sozlama") return head("Sozlamalar", "Biznes-qoidalar parametrlari") + `<div class="card" style="max-width:640px"><form data-form="settings" novalidate>
+    <div class="f2"><div class="field"><label for="st_cd">Takroriy navbat cheklovi (kun)</label><input id="st_cd" name="cooldownDays" type="number" min="1" max="90" value="${s.cooldownDays}"></div>
+    <div class="field"><label for="st_dp">Mahallaga kunlik reja (ballon)</label><input id="st_dp" name="dailyPlan" type="number" min="1" max="500" value="${s.dailyPlan}"></div>
+    <div class="field"><label for="st_pr">1 kg narxi (so'm)</label><input id="st_pr" name="pricePerKg" type="number" min="0" value="${s.pricePerKg}"></div>
+    <div class="field"><label for="st_kg">Ballon og'irligi (sukut, kg)</label><input id="st_kg" name="defaultKg" type="number" step="0.1" min="1" max="60" value="${s.defaultKg}"></div>
+    <div class="field"><label for="st_gps">GPS yuborish oralig'i (soniya)</label><input id="st_gps" name="gpsInterval" type="number" min="5" max="300" value="${s.gpsInterval}"></div></div>
+    <button class="btn btn-flame" type="submit">Saqlash</button></form>
+    <div class="note info">O'zgarishlar audit jurnaliga yoziladi va darhol barcha rollar uchun amal qiladi.</div>
+    <hr style="border:0;border-top:1px solid var(--line);margin:18px 0"><button class="btn btn-bad" type="button" data-act="reset">Sinov ma'lumotlarini qaytadan yaratish</button></div>`;
+  if (ui.tab === "foydalanuvchi") return head("Foydalanuvchilar", `${S.users.length} ta`) + `<div class="card"><div class="table-wrap"><table><thead><tr><th>F.I.Sh.</th><th>Rol</th><th>Email</th><th>Telefon</th><th>Bog'liqlik</th></tr></thead><tbody>${S.users.map((u) => `<tr><td>${esc(u.name)}</td><td><span class="role-badge">${ROLE[u.role]}</span></td><td>${esc(u.email)}</td><td class="num">${esc(u.phone)}</td><td class="small">${u.householdId ? `${esc(mById(hhById(u.householdId).mahallaId).name)}, ${esc(hhLabel(hhById(u.householdId)))}` : u.driverId ? esc(drvById(u.driverId).car) : u.mahallaId ? esc(mById(u.mahallaId).name) + " MFY" : "—"}</td></tr>`).join("")}</tbody></table></div></div>`;
+  if (ui.tab === "haydovchi") return head("Haydovchilar") + `<div class="grid-main"><div class="card"><div class="table-wrap"><table><thead><tr><th>Haydovchi</th><th>Avtomobil</th><th>Sig'im</th><th>Holat</th></tr></thead><tbody>${S.drivers.map((d) => `<tr><td>${esc(d.name)}<div class="small muted num">${esc(d.phone)}</div></td><td>${esc(d.car)}</td><td class="num">${d.capacity}</td><td><button class="btn ${d.active ? "btn-line" : "btn-ok"} btn-sm" type="button" data-act="driver-toggle" data-id="${d.id}">${d.active ? "Faol — o'chirish" : "Faollashtirish"}</button></td></tr>`).join("")}</tbody></table></div></div>
+    <div class="card"><h3>Yangi haydovchi</h3><form data-form="driver" novalidate><div class="field"><label for="dr_n">F.I.Sh.</label><input id="dr_n" name="name"></div><div class="field"><label for="dr_p">Telefon</label><input id="dr_p" name="phone"></div>
+    <div class="f2"><div class="field"><label for="dr_c">Avtomobil raqami</label><input id="dr_c" name="car" placeholder="40C789EF"></div><div class="field"><label for="dr_cap">Sig'im</label><input id="dr_cap" name="capacity" type="number" min="1" max="200" value="50"></div></div>
+    <button class="btn btn-flame" type="submit">Qo'shish</button></form><p class="small muted">Haydovchi uchun kirish: email avtomatik yaratiladi, parol demo123.</p></div></div>`;
+  if (ui.tab === "mahalla") return head("Mahallalar spravochnigi") + `<div class="grid-main"><div class="card"><div class="table-wrap"><table><thead><tr><th>Mahalla</th><th>Tuman</th><th>Viloyat</th><th>Xonadon</th></tr></thead><tbody>${S.mahallas.map((m) => `<tr><td><b>${esc(m.name)}</b></td><td>${esc(m.district)}</td><td>${esc(m.region)}</td><td class="num">${S.households.filter((h) => h.mahallaId === m.id).length}</td></tr>`).join("")}</tbody></table></div></div>
+    <div class="card"><h3>Yangi mahalla</h3><form data-form="mahalla" novalidate><div class="field"><label for="mh_r">Viloyat</label><select id="mh_r" name="region">${REGIONS.map((r) => `<option ${r === "Farg'ona viloyati" ? "selected" : ""}>${esc(r)}</option>`).join("")}</select></div>
+    <div class="field"><label for="mh_d">Tuman</label><input id="mh_d" name="district" value="Oltiariq tumani"></div><div class="field"><label for="mh_n">Mahalla nomi</label><input id="mh_n" name="name"></div><button class="btn btn-flame" type="submit">Qo'shish</button></form></div></div>`;
+  if (ui.tab === "audit") return head("Audit jurnali", "Muhim amallar kim tomonidan, qachon va nima sababdan bajarilgani") + `<div class="card"><div class="table-wrap"><table><thead><tr><th>Vaqt</th><th>Kim</th><th>Amal</th><th>Tafsilot</th><th>Sabab</th></tr></thead><tbody>${S.audit.slice().sort((a, b) => b.at - a.at).map((a) => `<tr><td class="num small">${fmtDT(a.at)}</td><td>${esc(a.actor)}</td><td><b>${esc(a.action)}</b></td><td class="small">${esc(a.detail)}</td><td class="small">${esc(a.reason || "—")}</td></tr>`).join("")}</tbody></table></div></div>`;
+  if (ui.tab === "hisobot") return head("Hisobot") + reportBlock();
+  return "";
+}
+
+// =================================================================== render
+function render() {
+  const u = me();
+  if (ui.view === "ilova" && !u) ui.view = "kirish";
+  topbar();
+  let html;
+  if (ui.view === "ilova") {
+    const tabs = TABS[u.role]; if (!tabs.some(([k]) => k === ui.tab)) ui.tab = tabs[0][0];
+    const unread = S.notifications.filter((n) => n.userId === u.id && !n.read).length;
+    const newC = S.complaints.filter((c) => c.status === "NEW").length;
+    const body = { citizen: vCitizen, driver: vDriver, dispatcher: vDispatcher, mfy: vMfy, admin: vAdmin }[u.role]();
+    html = `<main class="wrap app"><nav class="tabs" aria-label="Bo'limlar">${tabs.map(([k, t]) => `<button type="button" class="${k === ui.tab ? "on" : ""}" data-act="tab" data-tab="${k}">${t}${k === "xabar" && unread ? `<span class="cnt">${unread}</span>` : ""}${k === "murojaat" && u.role === "dispatcher" && newC ? `<span class="cnt">${newC}</span>` : ""}</button>`).join("")}</nav>${body}</main>`;
+  } else if (ui.view === "kirish") html = viewLogin();
+  else html = viewHome();
+  $("root").innerHTML = html;
+}
+function setView(v) { ui.view = v; try { history.replaceState(null, "", "#" + v); } catch { /* sandbox */ } render(); window.scrollTo(0, 0); }
+
+// =================================================================== hodisalar
+document.addEventListener("click", (e) => {
+  const el = e.target.closest("[data-act]"); if (!el) return;
+  const a = el.dataset.act; const id = el.dataset.id ? +el.dataset.id : null;
+  switch (a) {
+    case "home": setView("bosh"); break;
+    case "login-view": setView("kirish"); break;
+    case "open-app": ui.tab = null; setView("ilova"); break;
+    case "auth-tab": ui.authTab = el.dataset.tab; render(); break;
+    case "quick": { const u = S.users.find((x) => x.email === el.dataset.email); S.session = u.id; save(); ui.tab = null; ui.deliverFor = ui.statusFor = null; toast(`${ROLE[u.role]} sifatida kirdingiz: ${u.name}`, "success"); setView("ilova"); break; }
+    case "logout": S.session = null; save(); $("toast").className = "toast"; setView("bosh"); break;
+    case "tab": ui.tab = el.dataset.tab; if (ui.tab === "xabar" && me()) { S.notifications.forEach((n) => { if (n.userId === me().id) n.read = true; }); save(); } ui.deliverFor = ui.statusFor = null; ui.confirmCancel = false; if (ui.view !== "ilova") setView("ilova"); else { render(); } break;
+    case "order": act(createOrder, (o) => `Navbatga qo'shildingiz. Navbat raqamingiz: #${o.queue}`); break;
+    case "cancel-ask": ui.confirmCancel = true; render(); break;
+    case "cancel-no": ui.confirmCancel = false; render(); break;
+    case "cancel-yes": ui.confirmCancel = false; act(cancelOwnOrder, "Navbat bekor qilindi"); break;
+    case "route-start": act(() => startRoute(id), "Marshrut boshlandi. Xonadonlarga xabar yuborildi, GPS yoqildi."); break;
+    case "route-finish": act(() => finishRoute(id), (n) => n ? `Marshrut yakunlandi. ${n} ta xonadon navbatga qaytdi.` : "Marshrut yakunlandi."); break;
+    case "deliver-open": ui.deliverFor = id; render(); break;
+    case "deliver-close": ui.deliverFor = null; render(); break;
+    case "nothome": act(() => notHome(id), "Xonadon navbatdagi o'rnini saqlagan holda qaytarildi"); break;
+    case "status-open": ui.statusFor = id; render(); break;
+    case "status-close": ui.statusFor = null; render(); break;
+    case "route-toggle": ui.openRoute = ui.openRoute === id ? null : id; render(); break;
+    case "map-m": ui.mapM = id; render(); break;
+    case "block": act(() => { const h = hhById(id); h.blocked = !h.blocked; audit(h.blocked ? "Xonadon bloklandi" : "Blokdan chiqarildi", `${hhName(id)}, ${hhLabel(h)}`, "Antifrod tekshiruvi"); save(); return h.blocked; }, (b) => b ? "Xonadon bloklandi" : "Xonadon blokdan chiqarildi"); break;
+    case "verify": act(() => { const h = hhById(id); h.verified = true; audit("Xonadon tasdiqlandi", `${hhName(id)}, ${hhLabel(h)}`); notifyHousehold(id, "Xonadoningiz MFY tomonidan tasdiqlandi."); save(); }, "Xonadon tasdiqlandi"); break;
+    case "multi-off": act(() => { const h = hhById(id); h.multiFamily = false; h.actNo = ""; audit("Bir necha oila belgisi olindi", hhLabel(h)); save(); }, "Belgi olib tashlandi"); break;
+    case "needy": act(() => { const h = hhById(id); h.needy = !h.needy; audit(h.needy ? "Ehtiyojmand deb belgilandi" : "Ehtiyojmand belgisi olindi", `${hhName(id)}, ${hhLabel(h)}`); save(); }); break;
+    case "driver-toggle": act(() => { const d = drvById(id); d.active = !d.active; audit(d.active ? "Haydovchi faollashtirildi" : "Haydovchi o'chirildi", `${d.name}, ${d.car}`); save(); }); break;
+    case "reset": S = seed(); save(); ui.tab = null; toast("Sinov ma'lumotlari qaytadan yaratildi", "success"); setView("bosh"); break;
+    case "sample-signup": { const f = document.querySelector('[data-form="signup"]'); const v = { name: "Abdullayeva Mohira", phone: "90 555 12 34", email: "mohira" + (S.seq % 97) + "@mail.uz", password: "demo123", street: "Bog'bon", house: "31", familySize: "5", cardId: "" }; for (const [k, val] of Object.entries(v)) f.elements[k].value = val; break; }
+    case "copy-csv": {
+      const rows = [["Mahalla", "Navbat", "Xonadon", "Manzil", "Holat", "Navbatga turgan", "Topshirilgan", "kg", "Summa"]].concat(S.orders.map((o) => { const h = hhById(o.householdId); return [mById(h.mahallaId).name, o.queue, hhName(h.id), hhLabel(h), LABEL[o.status], fmtDT(o.requestedAt), fmtDT(o.deliveredAt), o.kg || "", o.amount || ""]; }));
+      const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(";")).join("\n");
+      navigator.clipboard?.writeText(csv).then(() => toast("CSV nusxalandi — Excel'ga joylashtiring", "success"), () => toast("Nusxalab bo'lmadi: brauzer ruxsat bermadi", "error"));
+      break;
+    }
+  }
+});
+document.addEventListener("change", (e) => { const f = e.target.dataset.filter; if (f) { ui[f] = e.target.value; render(); } });
+document.addEventListener("submit", (e) => {
+  const form = e.target.closest("[data-form]"); if (!form) return; e.preventDefault();
+  const d = Object.fromEntries(new FormData(form).entries()); const id = form.dataset.id ? +form.dataset.id : null;
+  switch (form.dataset.form) {
+    case "login": { const u = S.users.find((x) => x.email === norm(d.email) && x.password === d.password); if (!u) return toast("Email yoki parol noto'g'ri", "error"); S.session = u.id; save(); ui.tab = null; toast(`Xush kelibsiz, ${u.name}`, "success"); setView("ilova"); break; }
+    case "signup": try {
+      const name = d.name.trim().replace(/\s+/g, " "); if (name.split(" ").length < 2) fail("Ism va familiyani to'liq yozing.");
+      const phone = normPhone(d.phone); const email = norm(d.email); if (!email.includes("@")) fail("To'g'ri email kiriting.");
+      if (S.users.some((u) => u.email === email)) fail("Bu email bilan allaqachon ro'yxatdan o'tilgan.");
+      if ((d.password || "").length < 6) fail("Parol kamida 6 belgidan iborat bo'lsin.");
+      if (!d.street.trim() || !d.house.trim()) fail("Ko'cha va uy raqamini kiriting.");
+      const mid = +d.mahallaId; let h = S.households.find((x) => x.mahallaId === mid && norm(x.street) === norm(d.street) && norm(x.house).replace(/\s/g, "") === norm(d.house).replace(/\s/g, ""));
+      if (!h) { h = { id: nid(), mahallaId: mid, street: d.street.trim(), house: d.house.trim(), cardId: d.cardId.trim().toUpperCase(), familySize: +d.familySize || 1, verified: false, multiFamily: false, actNo: "", needy: false, blocked: false, createdAt: Date.now() }; S.households.push(h); }
+      const u = { id: nid(), email, password: d.password, role: "citizen", name, phone, householdId: h.id, createdAt: Date.now() }; S.users.push(u); S.session = u.id;
+      notify(u.id, "SmartGaz'ga xush kelibsiz! Xonadoningiz MFY tasdig'ini kutmoqda, navbatga hozirdan turishingiz mumkin.");
+      save(); ui.tab = null; toast("Ro'yxatdan o'tdingiz", "success"); setView("ilova");
+    } catch (err) { toast(err.message, "error"); } break;
+    case "profile": act(() => {
+      const u = me(); const h = hhById(u.householdId); const name = d.name.trim().replace(/\s+/g, " "); if (name.split(" ").length < 2) fail("Ism va familiyani to'liq yozing.");
+      u.name = name; u.phone = normPhone(d.phone); h.familySize = +d.familySize || h.familySize; h.cardId = (d.cardId || "").trim().toUpperCase();
+      if (d.street !== undefined && !activeOrderOf(h.id)) { h.street = d.street.trim() || h.street; h.house = d.house.trim() || h.house; }
+      save(); }, "Profil saqlandi"); break;
+    case "complaint": act(() => { if ((d.text || "").trim().length < 10) fail("Murojaat matnini batafsilroq yozing (kamida 10 belgi)."); const u = me(); S.complaints.push({ id: nid(), userId: u.id, orderId: activeOrderOf(u.householdId)?.id || null, type: d.type, text: d.text.trim(), status: "NEW", answer: "", at: Date.now() }); save(); }, "Murojaat dispecherga yuborildi"); break;
+    case "answer": act(() => { if ((d.answer || "").trim().length < 3) fail("Javob matnini yozing."); const c = S.complaints.find((x) => x.id === id); c.answer = d.answer.trim(); c.status = "ANSWERED"; notify(c.userId, `Murojaatingizga javob: ${c.answer}`); audit("Murojaatga javob", `${c.type} — ${userById(c.userId).name}`); save(); }, "Javob yuborildi"); break;
+    case "deliver": act(() => { deliver(id, parseFloat(d.kg), d.payment); ui.deliverFor = null; }, "Ballon topshirildi, fuqaroga xabar yuborildi"); break;
+    case "status": act(() => { manualStatus(id, d.status, d.reason); ui.statusFor = null; }, "Holat o'zgartirildi va audit jurnaliga yozildi"); break;
+    case "route": act(() => createRoute({ driverId: +d.driverId, mahallaId: +d.mahallaId, count: parseInt(d.count, 10), date: d.date || todayKey() }), (r) => `Marshrut #${r.r.id} yaratildi: ${r.n} ta xonadon band qilindi`); break;
+    case "multi": act(() => { if ((d.act || "").trim().length < 2) fail("O'rganish dalolatnomasi raqamini kiriting."); const h = hhById(id); h.multiFamily = true; h.actNo = d.act.trim(); audit("Bir necha oila belgilandi", hhLabel(h), `Dalolatnoma ${h.actNo}`); save(); }, "Belgilandi"); break;
+    case "settings": act(() => {
+      const n = { cooldownDays: +d.cooldownDays, dailyPlan: +d.dailyPlan, pricePerKg: +d.pricePerKg, defaultKg: +d.defaultKg, gpsInterval: +d.gpsInterval };
+      if (Object.values(n).some((v) => !(v >= 0)) || n.cooldownDays < 1 || n.dailyPlan < 1) fail("Qiymatlarni to'g'ri kiriting.");
+      const ch = Object.entries(n).filter(([k, v]) => S.settings[k] !== v).map(([k, v]) => `${k}: ${S.settings[k]} → ${v}`);
+      S.settings = n; if (ch.length) audit("Sozlamalar o'zgartirildi", ch.join(", ")); save(); }, "Sozlamalar saqlandi"); break;
+    case "driver": act(() => {
+      const name = (d.name || "").trim(); if (name.split(" ").length < 2) fail("F.I.Sh. ni to'liq yozing."); const phone = normPhone(d.phone); const car = (d.car || "").replace(/[\s-]/g, "").toUpperCase();
+      if (car.length < 6) fail("Avtomobil raqamini kiriting."); if (S.drivers.some((x) => x.car === car)) fail("Bu avtomobil raqami allaqachon bor.");
+      const dr = { id: nid(), name, phone, car, capacity: +d.capacity || 50, active: true }; S.drivers.push(dr);
+      S.users.push({ id: nid(), email: `haydovchi${dr.id}@smartgaz.uz`, password: "demo123", role: "driver", name, phone, driverId: dr.id, createdAt: Date.now() });
+      audit("Haydovchi qo'shildi", `${name}, ${car}`); save(); return dr; }, (dr) => `Haydovchi qo'shildi. Kirish: haydovchi${dr.id}@smartgaz.uz`); break;
+    case "mahalla": act(() => { const name = (d.name || "").trim(); if (name.length < 2) fail("Mahalla nomini kiriting."); if (S.mahallas.some((m) => norm(m.name) === norm(name) && norm(m.district) === norm(d.district))) fail("Bu mahalla allaqachon bor."); S.mahallas.push({ id: nid(), region: d.region, district: d.district.trim(), name }); audit("Mahalla qo'shildi", `${name}, ${d.district}`); save(); }, "Mahalla qo'shildi"); break;
+  }
+});
+
+// Jonli xarita va GPS ko'rsatkichi: faqat xarita SVG'si yangilanadi, formalar buzilmaydi.
+setInterval(() => {
+  document.querySelectorAll("[data-live-map]").forEach((el) => { el.innerHTML = mapSVG(+el.dataset.liveMap, el.dataset.mine ? +el.dataset.mine : null); });
+  document.querySelectorAll(".gps[data-rid]").forEach((el) => { const r = routeById(+el.dataset.rid); if (r && r.status === "IN_PROGRESS") el.outerHTML = gpsLine(r); });
+}, 2000);
+
+// Boshqa oynada (masalan, boshqa rol) qilingan o'zgarishlarni olish
+window.addEventListener("hashchange", () => { const h = location.hash.slice(1); const v = h === "kirish" ? "kirish" : h === "ilova" && me() ? "ilova" : h === "bosh" || !h ? "bosh" : ui.view; if (v !== ui.view) { ui.view = v; render(); } });
+window.addEventListener("storage", (e) => { if (e.key === KEY) { load(); render(); } });
+
+load();
+const h0 = (location.hash || "").slice(1);
+ui.view = h0 === "kirish" ? "kirish" : h0 === "ilova" && me() ? "ilova" : "bosh";
+render();
+})();
+</script>
+</body>
+</html>
